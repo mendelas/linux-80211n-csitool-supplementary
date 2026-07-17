@@ -223,6 +223,51 @@ CSI行列を取り出すには payload を CSIツールの bfee 形式で解釈�
 
 ---
 
+## 10. ラップトップを再起動した時の流れ
+
+**結論：設定が済んでいれば、電源を入れるだけ。手動操作は不要。**
+
+### 再起動しても自動で戻るもの（永続）
+| 項目 | 復帰 | 理由 |
+|---|---|---|
+| カーネル 3.5.7+ で起動 | ✓ | `GRUB_DEFAULT`（サブメニュー名で指定済み） |
+| 固定IP | ✓ | `/etc/network/interfaces`（NM非依存） |
+| sshd | ✓ | サービス自動起動 |
+| CSIファーム有効 | ✓ | `/lib/firmware` のシンボリックリンク（ファイルなので永続） |
+| NOPASSWD sudo / 各スクリプト | ✓ | ファイル |
+| ふた閉じ無効化 | ✓ | 設定ファイル |
+
+### 再起動で消えるもの（＝毎回 `run_experiment.sh` が自動でやり直す）
+- モニターモード / チャンネル / `connector_log` / `mon0` / `monitor_tx_rate`
+→ **揮発するのが正常**。実験のたびに `rx_setup.sh` / `tx_setup.sh` が設定するので**手動不要**。
+
+### 手順
+```bash
+# 1) 電源ON（or 制御PCからリモート再起動）
+ssh kota@192.168.100.11 "sudo reboot"
+# 2) 1〜2分待つ
+# 3) 制御PCから復帰確認
+ping -c2 192.168.100.11
+ssh kota@192.168.100.11 "uname -r; ls -l /lib/firmware/iwlwifi-5000-2.ucode | grep -o sigcomm2010"
+#    → 3.5.7+ と sigcomm2010 が出ればOK
+# 4) そのまま実験
+./run_experiment.sh walking 60
+```
+
+### 想定外のとき
+| 症状 | 確認 |
+|---|---|
+| `uname -r` が 3.5.7+ でない | `GRUB_DEFAULT` を確認（memtest/別カーネルを指していないか）→ `sudo update-grub` |
+| ping が通らない | `/etc/network/interfaces` の固定IP / ケーブル・ハブのリンク |
+| ssh できない | sshd が動いているか（現地で `sudo service ssh start`） |
+| sigcomm2010 が出ない | CSIファームが標準に戻っている → 有効化し直して再起動 |
+| 起動途中で止まる/画面が出ない | ふたを開けて GRUB を確認（既定が壊れている可能性） |
+
+> 💡 ふたを閉じたまま運用するなら、**GRUB既定=3.5.7** と **ふた閉じサスペンド無効** が前提。
+> これが効いていれば、電源ON→自動でCSIモード＋LAN復帰→制御PCから即実験、が成立する。
+
+---
+
 ## 9. 関連ドキュメント
 - 基本セットアップ（kernel 3.5.7 ビルド・ファーム・全ハマり所）: kernel repo `SETUP_CSITOOL_JA.md`
 - 単体キャプチャ用スクリプト: kernel repo `csi-scripts/`
