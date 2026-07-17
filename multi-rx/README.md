@@ -223,7 +223,7 @@ CSI行列を取り出すには payload を CSIツールの bfee 形式で解釈�
 
 ---
 
-## 10. ラップトップを再起動した時の流れ
+## 9. ラップトップを再起動した時の流れ
 
 **結論：設定が済んでいれば、電源を入れるだけ。手動操作は不要。**
 
@@ -268,7 +268,7 @@ ssh kota@192.168.100.11 "uname -r; ls -l /lib/firmware/iwlwifi-5000-2.ucode | gr
 
 ---
 
-## 9. 関連ドキュメント
+## 10. 関連ドキュメント
 - 基本セットアップ（kernel 3.5.7 ビルド・ファーム・全ハマり所）: kernel repo `SETUP_CSITOOL_JA.md`
 - 単体キャプチャ用スクリプト: kernel repo `csi-scripts/`
 - 解析（MATLAB）: supplementary `matlab/`（`read_bf_file.m` / `get_scaled_csi.m`）
