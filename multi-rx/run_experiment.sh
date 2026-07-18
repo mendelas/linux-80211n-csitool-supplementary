@@ -25,21 +25,20 @@ NPKTS=$(( (SECS + STARTUP_MARGIN) * 1000000 / DELAY ))
 echo "=== [1/6] RX radio setup (ch$CH $BW) ==="
 ssh "$RX0" "~/rx_setup.sh $CH $BW"
 ssh "$RX1" "~/rx_setup.sh $CH $BW"
-echo "=== [2/6] TX radio + rate setup (rate $RATE) ==="
-ssh "$TX"  "~/tx_setup.sh $CH $BW $RATE"
 
-echo "=== [3/6] start RX streams -> control PC ==="
+echo "=== [2/6] start RX streams -> control PC ==="
 ssh "$RX0" "sudo $REMOTE/multi-rx/csi_stream /dev/stdout" 2>/dev/null | "$HERE/csi_recv" 0 "$R0" &
 P0=$!
 ssh "$RX1" "sudo $REMOTE/multi-rx/csi_stream /dev/stdout" 2>/dev/null | "$HERE/csi_recv" 1 "$R1" &
 P1=$!
 sleep 2
 
-echo "=== [4/6] start TX injection ($NPKTS pkts) ==="
-ssh "$TX" "cd $REMOTE/injection && sudo ./random_packets $NPKTS $PAYLOAD 1 $DELAY" >/dev/null 2>&1 &
+# ★ TX setup + injection MUST be one ssh session (LORCON fails across sessions)
+echo "=== [3/6] TX setup + inject in ONE ssh ($NPKTS pkts) ==="
+ssh "$TX" "~/tx_setup.sh $CH $BW $RATE; cd $REMOTE/injection && sudo ./random_packets $NPKTS $PAYLOAD 1 $DELAY >/dev/null 2>&1" &
 PT=$!
 
-echo "=== [5/6] waiting for CSI to flow on BOTH RX (up to 120s) ==="
+echo "=== [4/6] waiting for CSI to flow on BOTH RX (up to 120s) ==="
 prev0=0; prev1=0; ready=0
 for i in $(seq 1 120); do
   sleep 1
@@ -54,7 +53,7 @@ done
 echo
 if [ "$ready" -ne 1 ]; then
   echo "!!!!! WARNING: CSI did NOT start on both RX."
-  echo "!!!!! Check: same channel on all / clear channel / CSI firmware active."
+  echo "!!!!! Check: same channel on all / clear channel / CSI firmware active / TX injecting."
 fi
 
 echo ""
@@ -64,16 +63,18 @@ echo "#      >>>>>   START THE EXPERIMENT NOW   <<<<<                   #"
 printf  "#              recording for %-4s seconds                        #\n" "$SECS"
 echo "#                                                                #"
 echo "##################################################################"
-printf '\a'; sleep 0.3; printf '\a'    # terminal bell x2
+printf '\a'; sleep 0.3; printf '\a'
 
 for r in $(seq "$SECS" -1 1); do printf "\r    recording... %4ss left    " "$r"; sleep 1; done
 echo
 
-echo "=== [6/6] stop streams & injection, then merge ==="
+echo "=== [5/6] stop streams & injection ==="
+ssh "$TX"  "sudo pkill -f random_packets" 2>/dev/null
 ssh "$RX0" "sudo pkill -f csi_stream"     2>/dev/null
 ssh "$RX1" "sudo pkill -f csi_stream"     2>/dev/null
-ssh "$TX"  "sudo pkill -f random_packets" 2>/dev/null
 kill $P0 $P1 $PT 2>/dev/null; wait $P0 $P1 2>/dev/null
+
+echo "=== [6/6] merge ==="
 "$HERE/csi_merge" "$MG" "$R0" "$R1"
 "$HERE/read_merged" "$MG" | tail -2
 echo ""
