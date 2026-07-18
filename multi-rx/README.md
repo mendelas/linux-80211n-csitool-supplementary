@@ -137,6 +137,18 @@ done
 ```
 → 各機 **3.5.7+** ＋ **sigcomm2010** ならOK。
 
+### 空きチャネル調査（実験前・現場で1回）
+RX機で `scan_channels.sh` を回し、CLEAR な ch を確認する（占有APや混雑chだと低電力注入が埋もれて受からない）。
+```bash
+# RX0 上で（制御PCからssh、または直接）
+~/scan_channels.sh                       # Part A: AP scan / Part B: 候補chのフレーム数実測
+```
+- **Part A** = ch ごとの AP 数・最強信号（多い ch は避ける）。
+- **Part B** = 非DFS候補ch(36/44/48/149/153/157/161/165)の 3 秒フレーム数。`<= clear candidate` が空き。
+- MAIN は WiTraj比較で **ch48 固定**にしたいので、ch48 が極端に混んでいなければ ch48 のまま。混んでいれば W52 内(ch36/44)の空きへ。5.8GHzアブレーション時は UNII-3 の空きch(161等)を選ぶ。
+- 決めた ch を `run_experiment.sh` の `CH=` に設定（全機共通）。
+- 注意: このスクリプトはドライバをクリーン再ロードするので、調査 → `run_experiment.sh` の順で。
+
 ### 当日
 1. RX0/RX1/TX: 電源ON（3.5.7で自動起動）＋ LANケーブル接続 → **ふたを閉じて放置**
 2. 制御PC:
