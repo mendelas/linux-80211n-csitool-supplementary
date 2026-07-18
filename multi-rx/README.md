@@ -137,17 +137,14 @@ done
 ```
 → 各機 **3.5.7+** ＋ **sigcomm2010** ならOK。
 
-### 空きチャネル調査（実験前・現場で1回）
-CLEAR な ch を確認する（占有APや混雑chだと低電力注入が埋もれて受からない）。**制御PCには5300が無い**ので、injection帯の実測はRX機で行い、制御PCはそれをSSHで叩いて結果を見る（run_experiment.shと同じpull型）。
+### 空きチャネル調査（実験前）
+どの ch が空いているかは **制御PC自身のWiFiで普通に調べればよい**（占有APや混雑chだと低電力注入が埋もれて受からない）。
 ```bash
-# ★推奨: 制御PCから（ふたを閉じたRXを触らずに）両RXをまとめて調査
-cd ~/linux-80211n-csitool-supplementary/multi-rx
-./scan_remote.sh                         # 既定で RX0(.11) と RX1(.12) を順に scan
-# 単発なら:  ssh kota@192.168.100.11 "~/scan_channels.sh"
-
-# RX機で直接やる場合:
-~/scan_channels.sh                       # Part A: AP scan / Part B: 候補chのフレーム数実測
+# 制御PCで一発。5GHz(FREQ>=5000)の行を見て、AP が居ない/弱い ch を選ぶ
+nmcli -f CHAN,FREQ,SIGNAL,SSID dev wifi list --rescan yes | sort -n
 ```
+MAIN は ch48 固定にしたいので、ch48 に強い AP が無ければそのまま。混んでいれば W52内(ch36/44) の空きへ。
+（RX位置での注入帯フレーム実測まで見たい時だけ、RX機で `~/scan_channels.sh` を回す。通常は上の nmcli で十分。）
 - **Part A** = ch ごとの AP 数・最強信号（多い ch は避ける）。
 - **Part B** = 非DFS候補ch(36/44/48/149/153/157/161/165)の 3 秒フレーム数。`<= clear candidate` が空き。
 - MAIN は WiTraj比較で **ch48 固定**にしたいので、ch48 が極端に混んでいなければ ch48 のまま。混んでいれば W52 内(ch36/44)の空きへ。5.8GHzアブレーション時は UNII-3 の空きch(161等)を選ぶ。
