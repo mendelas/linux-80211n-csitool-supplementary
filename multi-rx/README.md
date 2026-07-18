@@ -144,12 +144,8 @@ done
 nmcli -f CHAN,FREQ,SIGNAL,SSID dev wifi list --rescan yes | sort -n
 ```
 MAIN は ch48 固定にしたいので、ch48 に強い AP が無ければそのまま。混んでいれば W52内(ch36/44) の空きへ。
+決めた ch を `run_experiment.sh` の `CH=` に設定（全機共通）。
 （RX位置での注入帯フレーム実測まで見たい時だけ、RX機で `~/scan_channels.sh` を回す。通常は上の nmcli で十分。）
-- **Part A** = ch ごとの AP 数・最強信号（多い ch は避ける）。
-- **Part B** = 非DFS候補ch(36/44/48/149/153/157/161/165)の 3 秒フレーム数。`<= clear candidate` が空き。
-- MAIN は WiTraj比較で **ch48 固定**にしたいので、ch48 が極端に混んでいなければ ch48 のまま。混んでいれば W52 内(ch36/44)の空きへ。5.8GHzアブレーション時は UNII-3 の空きch(161等)を選ぶ。
-- 決めた ch を `run_experiment.sh` の `CH=` に設定（全機共通）。
-- 注意: このスクリプトはドライバをクリーン再ロードするので、調査 → `run_experiment.sh` の順で。
 
 ### 当日
 1. RX0/RX1/TX: 電源ON（3.5.7で自動起動）＋ LANケーブル接続 → **ふたを閉じて放置**
