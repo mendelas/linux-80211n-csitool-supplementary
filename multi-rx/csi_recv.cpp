@@ -32,7 +32,7 @@ int main(int argc, char** argv) {
         uint16_t l = ntohs(l_be);
         if (l == 0 || l > sizeof(payload)) { fprintf(stderr, "csi_recv: bad len %u\n", l); break; }
         if (read_full(0, payload, l) != (int)l) break;
-        struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts);
+        struct timespec ts; clock_gettime(CLOCK_REALTIME, &ts);
         double t = (double)ts.tv_sec + ts.tv_nsec * 1e-9;   // control-PC relative time
         fwrite(&t, sizeof(double), 1, out);
         fwrite(&rx_id, 1, 1, out);
