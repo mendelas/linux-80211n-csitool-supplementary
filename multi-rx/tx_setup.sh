@@ -1,7 +1,7 @@
 #!/bin/bash
 # TX radio + rate setup only (invoked over ssh by the control PC). No injection here.
 # usage: tx_setup.sh [CH] [BW] [RATE] [IF]
-CH=${1:-157}; BW=${2:-HT40-}; RATE=${3:-0x4901}; IF=${4:-wlan1}
+CH=${1:-48}; BW=${2:-HT20}; RATE=${3:-0x4101}; IF=${4:-wlan1}   # default MAIN: ch48 5.24GHz 20MHz MCS1 HT (license-free W52)
 sudo service network-manager stop 2>/dev/null
 sudo iw dev mon0 del 2>/dev/null
 sudo modprobe -r iwlwifi mac80211 cfg80211 2>/dev/null

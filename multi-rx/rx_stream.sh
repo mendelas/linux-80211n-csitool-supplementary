@@ -5,7 +5,7 @@
 RXID=${1:?rx_id(0 or 1) が必要}
 CONTROL=${2:?制御PC user@host が必要}
 LABEL=${3:-csi}
-CH=165           # 空きchに合わせる
+CH=48            # MAIN: ch48 5.24GHz 20MHz (免許不要 W52)。空きchに合わせる
 BW="HT20"
 IF=wlan1
 CTRL_OUT="csi_data/rx${RXID}.bin"   # 制御PC側の保存名(ホーム相対)
