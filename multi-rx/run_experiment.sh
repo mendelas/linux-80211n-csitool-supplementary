@@ -9,7 +9,7 @@ LABEL=${1:-exp}; SECS=${2:-60}
 RX0=kota@192.168.100.11
 RX1=kota@192.168.100.12
 TX=kota@192.168.100.13
-CH=157; BW=HT20; RATE=0x4101; PAYLOAD=100; DELAY=1000   # ch157 HT20 = 5785MHz 20MHz (high freq; HT40 unusable in UNII-3)
+CH=161; BW=HT40-; RATE=0x4901; PAYLOAD=100; DELAY=1000   # ch161 HT40- = 157+161, center 5795MHz, 40MHz (high freq + 40MHz, works)
 REMOTE=~/linux-80211n-csitool-supplementary
 HERE=$(cd "$(dirname "$0")" && pwd)
 OUTDIR=$HOME/csi_data/$(date +%Y%m%d)
