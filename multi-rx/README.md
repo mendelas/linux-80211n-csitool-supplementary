@@ -138,9 +138,14 @@ done
 → 各機 **3.5.7+** ＋ **sigcomm2010** ならOK。
 
 ### 空きチャネル調査（実験前・現場で1回）
-RX機で `scan_channels.sh` を回し、CLEAR な ch を確認する（占有APや混雑chだと低電力注入が埋もれて受からない）。
+CLEAR な ch を確認する（占有APや混雑chだと低電力注入が埋もれて受からない）。**制御PCには5300が無い**ので、injection帯の実測はRX機で行い、制御PCはそれをSSHで叩いて結果を見る（run_experiment.shと同じpull型）。
 ```bash
-# RX0 上で（制御PCからssh、または直接）
+# ★推奨: 制御PCから（ふたを閉じたRXを触らずに）両RXをまとめて調査
+cd ~/linux-80211n-csitool-supplementary/multi-rx
+./scan_remote.sh                         # 既定で RX0(.11) と RX1(.12) を順に scan
+# 単発なら:  ssh kota@192.168.100.11 "~/scan_channels.sh"
+
+# RX機で直接やる場合:
 ~/scan_channels.sh                       # Part A: AP scan / Part B: 候補chのフレーム数実測
 ```
 - **Part A** = ch ごとの AP 数・最強信号（多い ch は避ける）。
