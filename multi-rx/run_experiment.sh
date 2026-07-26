@@ -9,7 +9,7 @@ LABEL=${1:-exp}; SECS=${2:-60}
 RX0=kota@192.168.100.11
 RX1=kota@192.168.100.12
 TX=kota@192.168.100.13
-CH=48; BW=HT20; RATE=0x4101; PAYLOAD=100; DELAY=1000   # MAIN: ch48 5.24GHz 20MHz (worst-case, license-free W52, WiTraj-comparable)
+CH=161; BW=HT40-; RATE=0x4901; PAYLOAD=100; DELAY=1000   # DEFAULT: ch161 5.795GHz 40MHz HT40- (UNII-3; needs 5.8GHz experimental license + anechoic chamber)
 REMOTE=~/linux-80211n-csitool-supplementary
 HERE=$(cd "$(dirname "$0")" && pwd)
 OUTDIR=$HOME/csi_data/$(date +%Y%m%d)
