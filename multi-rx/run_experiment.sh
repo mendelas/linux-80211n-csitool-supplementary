@@ -10,6 +10,9 @@ RX0=kota@192.168.100.11
 RX1=kota@192.168.100.12
 TX=kota@192.168.100.13
 CH=161; BW=HT40-; RATE=0x4901; PAYLOAD=100; DELAY=1000   # DEFAULT: ch161 5.795GHz 40MHz HT40- (UNII-3; needs 5.8GHz experimental license + anechoic chamber)
+IF=wlan1
+TXPWR=14   # dBm. 14 = 25 mW = the 5.8GHz licence 指定事項. The card's ceiling is only
+           # ~15-16 dBm, so this is ~2 dB down and keeps every run inside the licence.
 REMOTE=~/linux-80211n-csitool-supplementary
 HERE=$(cd "$(dirname "$0")" && pwd)
 OUTDIR=$HOME/csi_data/$(date +%Y%m%d)
@@ -34,8 +37,8 @@ P1=$!
 sleep 2
 
 # ★ TX setup + injection MUST be one ssh session (LORCON fails across sessions)
-echo "=== [3/6] TX setup + inject in ONE ssh ($NPKTS pkts) ==="
-ssh "$TX" "~/tx_setup.sh $CH $BW $RATE; cd $REMOTE/injection && sudo ./random_packets $NPKTS $PAYLOAD 1 $DELAY >/dev/null 2>&1" &
+echo "=== [3/6] TX setup + inject in ONE ssh ($NPKTS pkts, ${TXPWR}dBm) ==="
+ssh "$TX" "~/tx_setup.sh $CH $BW $RATE $IF $TXPWR; cd $REMOTE/injection && sudo ./random_packets $NPKTS $PAYLOAD 1 $DELAY >/dev/null 2>&1" &
 PT=$!
 
 echo "=== [4/6] waiting for CSI to flow on BOTH RX (up to 120s) ==="
