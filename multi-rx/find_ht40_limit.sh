@@ -7,12 +7,19 @@ RX0=kota@192.168.100.11
 TX=kota@192.168.100.13
 REMOTE=~/linux-80211n-csitool-supplementary
 # "primary:BW:centerMHz"  (non-DFS, HT40-capable pairs; DFS W53/W56 skipped = injection blocked)
+#
+# Only these pairs exist on the 5300: iwl_eeprom_band_7[] is
+# {36,44,52,60,100,108,116,124,132,149,157} and the driver clears NO_HT40PLUS on
+# each listed ch and NO_HT40MINUS on ch+4 -- so in UNII-3 the ONLY 40MHz centers
+# are 5755 (149+153) and 5795 (157+161). "157:HT40-" (center 5775) is refused by
+# cfg80211 with -22 and is kept below only to keep that documented.
 CHANS=(
-  "36:HT40+:5190"    # 36+40  W52
-  "44:HT40+:5230"    # 44+48  W52
-  "149:HT40+:5755"   # 149+153 UNII-3
-  "157:HT40-:5775"   # 153+157 UNII-3
-  "161:HT40-:5795"   # 157+161 UNII-3
+  "36:HT40+:5190"    # 36+40   W52
+  "44:HT40+:5230"    # 44+48   W52   <- license-free 40MHz (main experiment)
+  "149:HT40+:5755"   # 149+153 UNII-3 <- licence first choice: only 5MHz into the ETC band
+  "153:HT40-:5755"   # 149+153 UNII-3, same RF occupancy as above, other primary
+  "157:HT40-:5775"   # impossible: driver refuses (see note above), expect "--"
+  "161:HT40-:5795"   # 157+161 UNII-3, sits entirely inside the ETC band
 )
 echo "=== HT40 reception sweep (TX->RX0) ==="
 for spec in "${CHANS[@]}"; do
