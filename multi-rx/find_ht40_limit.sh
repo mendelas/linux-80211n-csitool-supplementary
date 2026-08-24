@@ -16,10 +16,12 @@ REMOTE=~/linux-80211n-csitool-supplementary
 CHANS=(
   "36:HT40+:5190"    # 36+40   W52
   "44:HT40+:5230"    # 44+48   W52   <- license-free 40MHz (main experiment)
-  "149:HT40+:5755"   # 149+153 UNII-3 <- licence first choice: only 5MHz into the ETC band
+  "149:HT40+:5755"   # 149+153 UNII-3 <- licence SECOND choice / fallback if 5795 is refused
   "153:HT40-:5755"   # 149+153 UNII-3, same RF occupancy as above, other primary
   "157:HT40-:5775"   # impossible: driver refuses (see note above), expect "--"
-  "161:HT40-:5795"   # 157+161 UNII-3, sits entirely inside the ETC band
+  "161:HT40-:5795"   # 157+161 UNII-3 <- licence FIRST choice: highest 40MHz center the
+                     #                   5300 reaches, which is the point of this ablation
+  "157:HT40+:5795"   # 157+161 UNII-3, same RF occupancy as above, other primary
 )
 echo "=== HT40 reception sweep (TX->RX0) ==="
 for spec in "${CHANS[@]}"; do
