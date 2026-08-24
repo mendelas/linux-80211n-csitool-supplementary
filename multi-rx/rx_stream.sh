@@ -1,12 +1,15 @@
 #!/bin/bash
 # Intel 5300 CSI RX -> 制御PCへSSHストリーム（multi-RX用）
-# 使い方: ~/rx_stream.sh <rx_id:0|1> <user@control> [ラベル]
+# 使い方: ~/rx_stream.sh <rx_id:0|1> <user@control> [ラベル] [CH] [BW]
 #   例:   ~/rx_stream.sh 0 kota@192.168.1.10 walking
+#   例:   ~/rx_stream.sh 0 kota@192.168.1.10 w52test 48 HT40-
 RXID=${1:?rx_id(0 or 1) が必要}
 CONTROL=${2:?制御PC user@host が必要}
 LABEL=${3:-csi}
-CH=48            # MAIN: ch48 5.24GHz 20MHz (免許不要 W52)。空きchに合わせる
-BW="HT20"
+# 既定は run_experiment.sh と同じ ch161 HT40- (中心5795MHz, 40MHz)。
+# TX の BW と必ず一致させること。ズレると1パケットも受からない。
+CH=${4:-161}
+BW=${5:-HT40-}
 IF=wlan1
 CTRL_OUT="csi_data/rx${RXID}.bin"   # 制御PC側の保存名(ホーム相対)
 
