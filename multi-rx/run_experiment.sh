@@ -8,11 +8,14 @@ LABEL=${1:-exp}; SECS=${2:-60}
 # ===== settings (edit for your setup) =====
 RX0=kota@192.168.100.11
 RX1=kota@192.168.100.12
+RX2=                      # PC7 = kota@192.168.100.14。空にすると従来どおり 2RX で走る
 TX=kota@192.168.100.13
-CH=161; BW=HT40-; RATE=0x4901; PAYLOAD=100; DELAY=1000   # DEFAULT: ch161 5.795GHz 40MHz HT40- (UNII-3; needs 5.8GHz experimental license + anechoic chamber)
+CH=157; BW=HT40+; RATE=0x4901; PAYLOAD=100; DELAY=1000   # DEFAULT: ch157 HT40+ = 157+161, center 5795MHz 40MHz (UNII-3; needs 5.8GHz experimental license + anechoic chamber)
 IF=wlan1
-TXPWR=14   # dBm. 14 = 25 mW = the 5.8GHz licence 指定事項. The card's ceiling is only
-           # ~15-16 dBm, so this is ~2 dB down and keeps every run inside the licence.
+TXPWR=15   # dBm, i.e. the card's max (EEPROM ceiling is ~15-16 dBm).
+           # This is the SETTING, not the radiated power: the 5300 tops out below it, and
+           # the antenna-port output at 15 was MEASURED under the 25 mW 指定事項 of the
+           # 5.8GHz experimental licence. So max setting is still inside the licence.
 REMOTE=~/linux-80211n-csitool-supplementary
 HERE=$(cd "$(dirname "$0")" && pwd)
 OUTDIR=$HOME/csi_data/$(date +%Y%m%d)
@@ -22,18 +25,25 @@ mkdir -p "$OUTDIR"
 STAMP=$(date +%Y%m%d_%H%M%S)
 R0=$OUTDIR/${STAMP}_${LABEL}_rx0.bin
 R1=$OUTDIR/${STAMP}_${LABEL}_rx1.bin
+R2=$OUTDIR/${STAMP}_${LABEL}_rx2.bin
 MG=$OUTDIR/${STAMP}_${LABEL}_merged.bin
 NPKTS=$(( (SECS + STARTUP_MARGIN) * 1000000 / DELAY ))
 
 echo "=== [1/6] RX radio setup (ch$CH $BW) ==="
 ssh "$RX0" "~/rx_setup.sh $CH $BW"
 ssh "$RX1" "~/rx_setup.sh $CH $BW"
+[ -n "$RX2" ] && ssh "$RX2" "~/rx_setup.sh $CH $BW"
 
 echo "=== [2/6] start RX streams -> control PC ==="
 ssh "$RX0" "sudo $REMOTE/multi-rx/csi_stream /dev/stdout" 2>/dev/null | "$HERE/csi_recv" 0 "$R0" &
 P0=$!
 ssh "$RX1" "sudo $REMOTE/multi-rx/csi_stream /dev/stdout" 2>/dev/null | "$HERE/csi_recv" 1 "$R1" &
 P1=$!
+P2=""
+if [ -n "$RX2" ]; then
+  ssh "$RX2" "sudo $REMOTE/multi-rx/csi_stream /dev/stdout" 2>/dev/null | "$HERE/csi_recv" 2 "$R2" &
+  P2=$!
+fi
 sleep 2
 
 # ★ TX setup + injection MUST be one ssh session (LORCON fails across sessions)
@@ -41,21 +51,29 @@ echo "=== [3/6] TX setup + inject in ONE ssh ($NPKTS pkts, ${TXPWR}dBm) ==="
 ssh "$TX" "~/tx_setup.sh $CH $BW $RATE $IF $TXPWR; cd $REMOTE/injection && sudo ./random_packets $NPKTS $PAYLOAD 1 $DELAY >/dev/null 2>&1" &
 PT=$!
 
-echo "=== [4/6] waiting for CSI to flow on BOTH RX (up to 120s) ==="
-prev0=0; prev1=0; ready=0
+echo "=== [4/6] waiting for CSI to flow on ALL RX (up to 120s) ==="
+prev0=0; prev1=0; prev2=0; ready=0
 for i in $(seq 1 120); do
   sleep 1
   s0=$(stat -c%s "$R0" 2>/dev/null || echo 0)
   s1=$(stat -c%s "$R1" 2>/dev/null || echo 0)
-  printf "\r    rx0=%8s bytes   rx1=%8s bytes   (%ss)   " "$s0" "$s1" "$i"
-  if [ "$s0" -gt "$prev0" ] && [ "$s1" -gt "$prev1" ] && [ "$s0" -gt 2000 ] && [ "$s1" -gt 2000 ]; then
-    ready=1; break
+  ok=0
+  [ "$s0" -gt "$prev0" ] && [ "$s0" -gt 2000 ] && \
+  [ "$s1" -gt "$prev1" ] && [ "$s1" -gt 2000 ] && ok=1
+  if [ -n "$RX2" ]; then
+    s2=$(stat -c%s "$R2" 2>/dev/null || echo 0)
+    [ "$s2" -gt "$prev2" ] && [ "$s2" -gt 2000 ] || ok=0
+    printf "\r    rx0=%8s  rx1=%8s  rx2=%8s bytes  (%ss)   " "$s0" "$s1" "$s2" "$i"
+    prev2=$s2
+  else
+    printf "\r    rx0=%8s bytes   rx1=%8s bytes   (%ss)   " "$s0" "$s1" "$i"
   fi
   prev0=$s0; prev1=$s1
+  [ "$ok" -eq 1 ] && { ready=1; break; }
 done
 echo
 if [ "$ready" -ne 1 ]; then
-  echo "!!!!! WARNING: CSI did NOT start on both RX."
+  echo "!!!!! WARNING: CSI did NOT start on every RX."
   echo "!!!!! Check: same channel on all / clear channel / CSI firmware active / TX injecting."
 fi
 
@@ -75,12 +93,17 @@ echo "=== [5/6] stop streams & injection ==="
 ssh "$TX"  "sudo pkill -f random_packets" 2>/dev/null
 ssh "$RX0" "sudo pkill -f csi_stream"     2>/dev/null
 ssh "$RX1" "sudo pkill -f csi_stream"     2>/dev/null
-kill $P0 $P1 $PT 2>/dev/null; wait $P0 $P1 2>/dev/null
+[ -n "$RX2" ] && ssh "$RX2" "sudo pkill -f csi_stream" 2>/dev/null
+kill $P0 $P1 $PT $P2 2>/dev/null; wait $P0 $P1 $P2 2>/dev/null
 
 echo "=== [6/6] merge ==="
-"$HERE/csi_merge" "$MG" "$R0" "$R1"
+if [ -n "$RX2" ]; then
+  "$HERE/csi_merge" "$MG" "$R0" "$R1" "$R2"
+else
+  "$HERE/csi_merge" "$MG" "$R0" "$R1"
+fi
 "$HERE/read_merged" "$MG" | tail -2
 echo ""
 echo "=== DONE ==="
 echo "  merged : $MG"
-echo "  per-RX : $R0 , $R1"
+if [ -n "$RX2" ]; then echo "  per-RX : $R0 , $R1 , $R2"; else echo "  per-RX : $R0 , $R1"; fi

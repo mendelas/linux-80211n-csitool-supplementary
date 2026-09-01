@@ -1,10 +1,12 @@
 #!/bin/bash
 # TX radio + rate setup only (invoked over ssh by the control PC). No injection here.
 # usage: tx_setup.sh [CH] [BW] [RATE] [IF] [TXPWR_dBm]
-CH=${1:-48}; BW=${2:-HT20}; RATE=${3:-0x4101}; IF=${4:-wlan1}   # default MAIN: ch48 5.24GHz 20MHz MCS1 HT (license-free W52)
-TXPWR=${5:-14}   # dBm. 14 = 25 mW = the 5.8GHz experimental-licence 指定事項.
-                 # The card's own ceiling is only ~15-16 dBm, so this costs ~2 dB and
-                 # keeps the station inside its licensed power on every channel.
+CH=${1:-157}; BW=${2:-HT40+}; RATE=${3:-0x4901}; IF=${4:-wlan1}   # default: ch157 HT40+ = 157+161, center 5795MHz, MCS1 HT (UNII-3, licensed)
+TXPWR=${5:-15}   # dBm, i.e. the card's max (EEPROM ceiling is ~15-16 dBm). This is the
+                 # SETTING, not the radiated power: the antenna-port output at 15 was
+                 # MEASURED under the 25 mW 指定事項 of the 5.8GHz experimental licence.
+                 # The driver may refuse 16+; the dmesg check below is the only honest
+                 # report (iw's exit status lies -- see the comment at the txpower call).
 sudo service network-manager stop 2>/dev/null
 sudo iw dev mon0 del 2>/dev/null
 sudo modprobe -r iwlwifi mac80211 cfg80211 2>/dev/null

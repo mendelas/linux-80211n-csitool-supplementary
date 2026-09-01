@@ -6,10 +6,10 @@
 RXID=${1:?rx_id(0 or 1) が必要}
 CONTROL=${2:?制御PC user@host が必要}
 LABEL=${3:-csi}
-# 既定は run_experiment.sh と同じ ch161 HT40- (中心5795MHz, 40MHz)。
-# TX の BW と必ず一致させること。ズレると1パケットも受からない。
-CH=${4:-161}
-BW=${5:-HT40-}
+# 既定は run_experiment.sh と同じ ch157 HT40+ (157+161, 中心5795MHz, 40MHz)。
+# TX の ch/BW と表記まで完全に一致させること。ズレると1パケットも受からない。
+CH=${4:-157}
+BW=${5:-HT40+}
 IF=wlan1
 CTRL_OUT="csi_data/rx${RXID}.bin"   # 制御PC側の保存名(ホーム相対)
 

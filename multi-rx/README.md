@@ -211,7 +211,10 @@ CSI行列を取り出すには payload を CSIツールの bfee 形式で解釈�
 
 - **チャンネル/帯域を変える** → `run_experiment.sh` の `CH`/`BW`/`RATE` を変えるだけ（全機に自動反映。rx_setup.sh/tx_setup.sh は引数で受け取る）
 - **レート/時間を変える** → `DELAY`（pkt/s）と実行時の秒数引数
-- **RXを増やす** → `RX2=kota@192.168.100.14` を足し、`csi_recv 2 ...` の行と `csi_merge` の引数を追加（IDは0,1,2...）
+- **3台目のRX(PC7)を使う** → `run_experiment.sh` の `RX2=` に `kota@192.168.100.14` を書くだけ。
+  setup / csi_recv 2 / 到達待ち判定 / csi_merge / 停止処理はすべて自動で 3RX になる。空に戻せば 2RX 運用。
+- **4台目以降を増やす** → 上と同じ要領で `RX3` を追加（`csi_recv 3` / 待ち判定 / `csi_merge` の引数）。
+  `csi_merge` は `<out> <in0> [in1 ...]` の可変長なので入力の追加自体は自由（IDは0,1,2...）
 - **TXを別機に** → `TX=` のIPを変更
 - **単体で取りたい** → `rx_capture.sh`（ローカル保存版, 制御PC不要）
 
