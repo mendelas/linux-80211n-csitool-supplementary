@@ -1,4 +1,4 @@
-# multi-rx: マルチRX CSI 実験セットアップ（1TX → 2RX → 制御PCで1ファイル）
+# multi-rx: マルチRX CSI 実験セットアップ（1TX → N台RX → 制御PCで1ファイル）
 
 制御PCから全機を SSH で操作し、各RXのCSIをリアルタイムに集約・時刻付与・1バイナリへ統合する。
 **RX間のクロック同期は不要**（制御PCの1つの時計が共通基準。誤差=LANジッタ数ms）。
@@ -9,10 +9,11 @@
 ## 1. 構成
 
 ```
-         [TX]  Intel5300 / 3.5.7+ / CSIファーム        192.168.100.13
+         [TX]  Intel5300 / 3.5.7+ / CSIファーム        192.168.100.<TX_NODE>
            │ 802.11n HTパケットを注入(random_packets)
-           ├──────────────▶ [RX0] Intel5300 monitor    192.168.100.11
-           └──────────────▶ [RX1] Intel5300 monitor    192.168.100.12
+           ├──────────────▶ [rx0] Intel5300 monitor    192.168.100.<RX_NODES[0]>
+           ├──────────────▶ [rx1] Intel5300 monitor    192.168.100.<RX_NODES[1]>
+           └──────────────▶ [rxN] ...                  (台数は hosts.sh で自由)
                                 │  │  (無線=CSI観測)
    ─── スイッチングハブ(有線LAN) ───┴──┴───────────────
                                 │
@@ -20,37 +21,44 @@
         ssh で全機を操作 / csi_recv で時刻スタンプ / csi_merge で統合
 ```
 
+**★ IP はマシンに固定、役割(TX/RX)は実験ごとに `hosts.sh` で割り当てる。**
+- 各ラップトップには**マシン番号 N**(= IP 末尾 `192.168.100.N`)を振り、本体に書いておく。N は一生変えない。
+- 全機に `rx_setup.sh` と `tx_setup.sh` の両方を置くので、どの機でも TX にも RX にもなれる
+  (TX になるには LORCON/`random_packets` のビルドも必要。`check_nodes.sh` の `inject` 列で分かる)。
+- 「どの機が TX で、どの機が rx0, rx1, ...」は `hosts.sh` の `TX_NODE` / `RX_NODES` の2行だけ。
+
 | 機 | 役割 | 必要なもの |
 |---|---|---|
-| TX | パケット注入 | 5300 + kernel3.5.7 + CSIファーム + LORCON/random_packets |
-| RX0/RX1 | CSI観測 → 制御PCへ送出 | 5300 + kernel3.5.7 + CSIファーム + csi_stream |
+| ノード(全ラップトップ共通) | TX(注入) または RX(CSI観測→制御PCへ送出) | 5300 + kernel3.5.7 + CSIファーム + csi_stream + rx/tx_setup.sh。TX にするなら + LORCON/random_packets |
 | **制御PC** | 指揮・時刻付与・統合・解析 | **supplementary のみ**（+ g++ / ssh / MATLAB）。5300もカーネルも不要 |
 
 **SSHの向きは Pull**（制御PC → 各機）。RX/TX側は制御PCのIPを知らなくてよい
-→ **固定IPが要るのは RX0/RX1/TX だけ**。制御PCのIPは自由（ただし同一サブネットに手動設定は必要＝ハブにDHCPが無いため）。
+→ **固定IPが要るのはノードだけ**。制御PCのIPは自由（ただし同一サブネットに手動設定は必要＝ハブにDHCPが無いため）。
 
 ---
 
-## 2. ネットワーク（固定IP）
+## 2. ネットワーク（固定IP = マシン番号）
 
-| 機 | IP |
-|---|---|
-| 制御PC | 192.168.100.10（同一サブネットなら何でも可） |
-| RX0 | 192.168.100.11 |
-| RX1 | 192.168.100.12 |
-| TX  | 192.168.100.13 |
+| 機 | IP | 備考 |
+|---|---|---|
+| 制御PC | 192.168.100.10（同一サブネットなら何でも可） | ノードではない |
+| ノード N | 192.168.100.N（N = 11, 12, 13, ...） | **本体に N を書く**。台帳は `hosts.sh` の冒頭コメント |
 
 netmask `255.255.255.0` / **ゲートウェイ・DNSは不要**（閉じたLAN）。
 
-### RX/TX（Ubuntu 14.04）＝ `/etc/network/interfaces`
-**キャプチャ中に `service network-manager stop` するため、有線はNM管理外にする**のが重要:
+### ノード（Ubuntu 14.04）＝ `/etc/network/interfaces`
+**新しい機は `node_setup.sh` で一発**（固定IP・sshd・NOPASSWD・両スクリプト配置・ビルドまで。3-2 参照）:
+```bash
+cd ~/linux-80211n-csitool-supplementary/multi-rx && ./node_setup.sh 13     # ← この機を .13 にする
+```
+手動でやる場合の中身（**キャプチャ中に `service network-manager stop` するため、有線はNM管理外にする**のが重要）:
 ```bash
 ip link                      # 有線IF名を確認（eth0 等）
 sudo tee -a /etc/network/interfaces << 'EOF'
 
 auto eth0
 iface eth0 inet static
-    address 192.168.100.11   # RX0=.11 / RX1=.12 / TX=.13
+    address 192.168.100.13   # = マシン番号
     netmask 255.255.255.0
 EOF
 sudo ifdown eth0 2>/dev/null; sudo ifup eth0
@@ -76,31 +84,33 @@ sudo nmcli con up "Wired connection 1"
 sudo apt-get update && sudo apt-get install -y build-essential git openssh-client   # ★g++必須
 git clone https://github.com/mendelas/linux-80211n-csitool-supplementary.git
 make -C linux-80211n-csitool-supplementary/multi-rx      # csi_recv / csi_merge / read_merged
-# 有線に手動IP（上記）→ 疎通確認
-ping -c2 192.168.100.11 && ping -c2 192.168.100.12 && ping -c2 192.168.100.13
-# ssh鍵を配る
+# 有線に手動IP（上記）
+# ssh鍵を配る（N = hosts.sh の ALL_NODES）
 ls ~/.ssh/id_*.pub 2>/dev/null || ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519
-for ip in 11 12 13; do ssh-copy-id kota@192.168.100.$ip; done
-for ip in 11 12 13; do ssh kota@192.168.100.$ip "echo ok: \$(hostname)"; done
+for n in 11 12 13 14 15 16; do ssh-copy-id kota@192.168.100.$n; done
+# 全機の状態を一覧（ping/ssh/sudo/カーネル/CSIファーム/rx.sh/tx.sh/inject）
+./check_nodes.sh
 ```
 ※ 制御PCに **sshd は不要**（Pull方式）。
 
-### 3-2. RX0 / RX1（5300ノート・CSIツール導入済みが前提）
+### 3-2. ノード（新しいラップトップを追加するとき。5300ノート・CSIツール導入済みが前提）
 **★要ネットの作業を先に**（標準ファーム/通常カーネルでWiFiが使えるうちに）:
 ```bash
 cd ~/linux-80211n-csitool-supplementary
 git remote set-url origin https://github.com/mendelas/linux-80211n-csitool-supplementary.git
 git pull
-make -C multi-rx csi_stream                    # RX用ストリーマ
-cp multi-rx/rx_setup.sh ~/ && chmod +x ~/rx_setup.sh
-sudo apt-get install -y openssh-server         # ★制御PCからssh流入するため
-echo "kota ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/csi && sudo chmod 440 /etc/sudoers.d/csi
+# TX にもなれるようにするなら LORCON（要ネット。RX 専用でよければ省略可）
+sudo apt-get install -y libpcap-dev
+cd ~ && git clone https://github.com/dhalperi/lorcon-old.git
+cd lorcon-old && ./configure && make && sudo make install && sudo ldconfig
+# ★一発セットアップ: 固定IP .N / sshd / NOPASSWD / rx_setup.sh+tx_setup.sh / csi_stream / random_packets
+cd ~/linux-80211n-csitool-supplementary/multi-rx && ./node_setup.sh <N>
 ```
 > NOPASSWD は必須（ssh越しはttyが無く sudo パスワードを入力できないため）。
+> `node_setup.sh` は最後に wlan IF 名を表示する。**`wlan1` でなければ** `run_experiment.sh` / `rx_setup.sh` / `tx_setup.sh` の `IF=` を合わせる。
 
 **オフラインでOK:**
 ```bash
-# 固定IP（上記）
 # GRUB既定を 3.5.7 に（★memtestを選ばないよう“名前”で指定）
 grep -E "menuentry '|submenu '" /boot/grub/grub.cfg | sed -E "s/.*(menuentry|submenu) '([^']*)'.*/\2/"
 sudo nano /etc/default/grub
@@ -111,18 +121,15 @@ for f in /lib/firmware/iwlwifi-5000-*.ucode; do sudo mv "$f" "$f.standard"; done
 sudo ln -sf iwlwifi-5000-2.ucode.sigcomm2010 /lib/firmware/iwlwifi-5000-2.ucode
 sudo reboot          # → 3.5.7+ で自動起動すること
 ```
+最後に制御PCの `hosts.sh` の `ALL_NODES` に N を足し、台帳コメントに機種/MACを書いて `./check_nodes.sh`。
 
-### 3-3. TX
-RXと同じ手順。ただし置くのは `tx_setup.sh`、かつ **LORCON/random_packets が必須**:
+### 3-3. 役割の割り当て（実験ごと）
+`hosts.sh` の2行だけ:
 ```bash
-cp ~/linux-80211n-csitool-supplementary/multi-rx/tx_setup.sh ~/ && chmod +x ~/tx_setup.sh
-ls ~/linux-80211n-csitool-supplementary/injection/random_packets    # 無ければ↓（要ネット）
-#   sudo apt-get install -y libpcap-dev
-#   cd ~ && git clone https://github.com/dhalperi/lorcon-old.git
-#   cd lorcon-old && ./configure && make && sudo make install && sudo ldconfig
-#   make -C ~/linux-80211n-csitool-supplementary/injection
-# あとは RX と同じ（sshd, NOPASSWD, 固定IP=.13, GRUB既定, CSIファーム有効化, reboot）
+TX_NODE=13              # TX にする機（check_nodes.sh で inject=ok の機）
+RX_NODES=(11 12 14)     # rx0, rx1, rx2, ... の順。台数自由
 ```
+`run_experiment.sh` / `txpower_sweep.sh` / `find_ht40_limit.sh` は全部これを読む。
 
 ---
 
@@ -130,12 +137,8 @@ ls ~/linux-80211n-csitool-supplementary/injection/random_packets    # 無けれ�
 
 ### 事前チェック（制御PCから一括）
 ```bash
-for ip in 11 12 13; do
-  echo "===== .$ip ====="
-  ssh kota@192.168.100.$ip "uname -r; ls -l /lib/firmware/iwlwifi-5000-2.ucode | grep -o sigcomm2010"
-done
+./check_nodes.sh          # 全機。TX 行は tx.sh+inject=ok、RX 行は rx.sh=ok、全機 kernel 3.5.7+ / csifw=csi ならOK
 ```
-→ 各機 **3.5.7+** ＋ **sigcomm2010** ならOK。
 
 ### 空きチャネル調査（実験前）
 どの ch が空いているかは **制御PC自身のWiFiで普通に調べればよい**（占有APや混雑chだと低電力注入が埋もれて受からない）。
@@ -148,14 +151,14 @@ MAIN は ch48 固定にしたいので、ch48 に強い AP が無ければその
 （RX位置での注入帯フレーム実測まで見たい時だけ、RX機で `~/scan_channels.sh` を回す。通常は上の nmcli で十分。）
 
 ### 当日
-1. RX0/RX1/TX: 電源ON（3.5.7で自動起動）＋ LANケーブル接続 → **ふたを閉じて放置**
+1. 全ノード: 電源ON（3.5.7で自動起動）＋ LANケーブル接続 → **ふたを閉じて放置**
 2. 制御PC:
    ```bash
    cd ~/linux-80211n-csitool-supplementary/multi-rx
    ./run_experiment.sh <ラベル> <秒数>     # 例: ./run_experiment.sh walking 60
    ```
    自動で: RX設定 → TX設定 → ストリーム開始 → 注入 → 停止 → **merged.bin**
-3. 出力: `~/csi_data/YYYYMMDD/<日時>_<ラベル>_merged.bin`（+ rx0.bin / rx1.bin）
+3. 出力: `~/csi_data/YYYYMMDD/<日時>_<ラベル>_merged.bin`（+ rx0.bin / rx1.bin / ...）
 
 > **CSIは開始から数秒〜1分で流れ出す**（5GHzの立ち上がり）。実験本番はそれを待ってから。
 
@@ -167,11 +170,11 @@ MAIN は ch48 固定にしたいので、ch48 に強い AP が無ければその
 ```
 1レコード:
   double   t         // 制御PCの相対時刻[秒]（全RX共通軸・CLOCK_MONOTONIC）
-  uint8_t  rx_id     // 0 or 1
+  uint8_t  rx_id     // RX_NODES の添字 0,1,2,...
   uint16_t len       // ペイロード長
   uint8_t  payload[len]  // 元のCSIレコード（先頭0xbb=CSI, 中にNIC timestamp_low）
 ```
-→ `t` 昇順にソート済み。rx0/rx1 が到着時刻順に混在。
+→ `t` 昇順にソート済み。全 rx が到着時刻順に混在。
 
 ### 単体キャプチャ(.csi) との差
 | | .csi（単体） | merged.bin |
@@ -191,10 +194,10 @@ CSI行列を取り出すには payload を CSIツールの bfee 形式で解釈�
 
 ## 6. パラメータ（実験ごとに変える）
 
-`run_experiment.sh` 先頭:
+`hosts.sh`（役割）と `run_experiment.sh` 先頭（電波）:
 | 変数 | 意味 | 備考 |
 |---|---|---|
-| `RX0/RX1/TX` | 各機のIP | 固定IPに合わせる |
+| `TX_NODE` / `RX_NODES` | どの機が TX / rx0,rx1,... か | **hosts.sh**。マシン番号で指定 |
 | `CH` | チャンネル | **★全機共通**。空きchを使う |
 | `BW` | 帯域 | HT20 / HT40-（**全機共通**） |
 | `RATE` | 送信レート | HT20→`0x4101` / HT40→`0x4901` |
@@ -211,11 +214,9 @@ CSI行列を取り出すには payload を CSIツールの bfee 形式で解釈�
 
 - **チャンネル/帯域を変える** → `run_experiment.sh` の `CH`/`BW`/`RATE` を変えるだけ（全機に自動反映。rx_setup.sh/tx_setup.sh は引数で受け取る）
 - **レート/時間を変える** → `DELAY`（pkt/s）と実行時の秒数引数
-- **3台目のRX(PC7)を使う** → `run_experiment.sh` の `RX2=` に `kota@192.168.100.14` を書くだけ。
-  setup / csi_recv 2 / 到達待ち判定 / csi_merge / 停止処理はすべて自動で 3RX になる。空に戻せば 2RX 運用。
-- **4台目以降を増やす** → 上と同じ要領で `RX3` を追加（`csi_recv 3` / 待ち判定 / `csi_merge` の引数）。
-  `csi_merge` は `<out> <in0> [in1 ...]` の可変長なので入力の追加自体は自由（IDは0,1,2...）
-- **TXを別機に** → `TX=` のIPを変更
+- **RXを増やす/減らす・TXを別機に** → `hosts.sh` の `RX_NODES=( ... )` / `TX_NODE=` を書き換えるだけ。
+  setup / csi_recv / 到達待ち判定 / csi_merge / 停止処理はすべて台数に追従する（`csi_merge` は可変長入力、rx_id=添字）
+- **新しいラップトップを足す** → 3-2（`node_setup.sh <N>`）→ `ALL_NODES` に追加 → `check_nodes.sh`
 - **単体で取りたい** → `rx_capture.sh`（ローカル保存版, 制御PC不要）
 
 ---
@@ -225,8 +226,9 @@ CSI行列を取り出すには payload を CSIツールの bfee 形式で解釈�
 | 症状 | 原因 / 対処 |
 |---|---|
 | `ping` が通らない | 制御PCの有線に手動IPが無い / RX側の固定IP未設定 / ケーブル・ハブ |
-| ssh でパスワードを聞かれる | `ssh-copy-id` 未実施 |
-| ssh越しの sudo で止まる | NOPASSWD sudo 未設定（`/etc/sudoers.d/csi`） |
+| ssh でパスワードを聞かれる | `ssh-copy-id` 未実施（`check_nodes.sh` の ssh 列が NO） |
+| ssh越しの sudo で止まる | NOPASSWD sudo 未設定（`/etc/sudoers.d/csi`、`node_setup.sh` がやる） |
+| TX 機で注入が始まらない | その機に `random_packets` が無い（`check_nodes.sh` の inject 列）→ LORCON をビルドするか `TX_NODE` を inject=ok の機に |
 | `make` が Error 127 | 制御PCに `g++` が無い → `apt-get install build-essential` |
 | 起動したら Memtest86+ | `GRUB_DEFAULT` が番号指定でmemtestを選択 → **サブメニュー名で指定** |
 | WiFiが繋がらない(RX/TX) | CSIファーム有効中は正常（標準ファームに戻せば復帰） |
@@ -260,9 +262,8 @@ CSI行列を取り出すには payload を CSIツールの bfee 形式で解釈�
 ssh kota@192.168.100.11 "sudo reboot"
 # 2) 1〜2分待つ
 # 3) 制御PCから復帰確認
-ping -c2 192.168.100.11
-ssh kota@192.168.100.11 "uname -r; ls -l /lib/firmware/iwlwifi-5000-2.ucode | grep -o sigcomm2010"
-#    → 3.5.7+ と sigcomm2010 が出ればOK
+./check_nodes.sh 11
+#    → kernel 3.5.7+ と csifw csi が出ればOK
 # 4) そのまま実験
 ./run_experiment.sh walking 60
 ```

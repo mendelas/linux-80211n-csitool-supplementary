@@ -3,8 +3,8 @@
 # Finds the upper frequency limit where 40MHz injection is still received.
 # usage: ./find_ht40_limit.sh
 set -u
-RX0=kota@192.168.100.11
-TX=kota@192.168.100.13
+source "$(cd "$(dirname "$0")" && pwd)/hosts.sh"   # TX + RXS[] ; this sweep uses TX -> RXS[0]
+RX0=${RXS[0]}
 REMOTE=~/linux-80211n-csitool-supplementary
 # "primary:BW:centerMHz"  (non-DFS, HT40-capable pairs; DFS W53/W56 skipped = injection blocked)
 #

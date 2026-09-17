@@ -10,8 +10,8 @@
 #
 # usage: ./txpower_sweep.sh [CH] [BW] [RATE]
 set -u
-RX0=kota@192.168.100.11
-TX=kota@192.168.100.13
+source "$(cd "$(dirname "$0")" && pwd)/hosts.sh"   # TX + RXS[] ; this sweep uses TX -> RXS[0]
+RX0=${RXS[0]}
 REMOTE=~/linux-80211n-csitool-supplementary
 CH=${1:-157}; BW=${2:-HT40+}; RATE=${3:-0x4901}   # default: ch157 HT40+, center 5795MHz = the standard capture setting
 LEVELS="0 3 6 9 11 13 14 15 16"                  # dBm; 14 = 25 mW
