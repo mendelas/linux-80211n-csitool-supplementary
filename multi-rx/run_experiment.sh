@@ -29,6 +29,23 @@ MG=$OUTDIR/${STAMP}_${LABEL}_merged.bin
 NPKTS=$(( (SECS + STARTUP_MARGIN) * 1000000 / DELAY ))
 echo "TX=$TX   RX=${RXS[*]}   ($NRX RX)"
 
+# Stop everything this script starts: injection on TX, csi_stream on every RX, csi_recv here.
+# Used by step 5 AND by the Ctrl-C trap. Without the trap, Ctrl-C only kills this script:
+# bash starts background jobs with SIGINT ignored, so the ssh|csi_recv pipelines survive,
+# the remote csi_stream keeps streaming into the rxN.bin files and random_packets keeps
+# transmitting until NPKTS runs out (observed 2026-10-23: three aborted runs kept growing
+# for 18 minutes and injected on top of each other).
+P=(); PT=
+stop_all() {
+  ssh -o ConnectTimeout=5 "$TX" "sudo pkill -f random_packets" 2>/dev/null
+  for r in "${RXS[@]}"; do ssh -o ConnectTimeout=5 "$r" "sudo pkill -f csi_stream" 2>/dev/null; done
+  kill "${P[@]}" $PT 2>/dev/null; wait "${P[@]}" $PT 2>/dev/null
+}
+trap 'echo; echo "!!! interrupted: stopping injection + streams on every node"; stop_all; exit 130' INT TERM
+
+echo "=== [0/6] kill leftovers from a previous aborted run ==="
+stop_all
+
 echo "=== [1/6] RX radio setup (ch$CH $BW) ==="
 for r in "${RXS[@]}"; do ssh "$r" "~/rx_setup.sh $CH $BW"; done
 
@@ -79,9 +96,8 @@ for r in $(seq "$SECS" -1 1); do printf "\r    recording... %4ss left    " "$r";
 echo
 
 echo "=== [5/6] stop streams & injection ==="
-ssh "$TX" "sudo pkill -f random_packets" 2>/dev/null
-for r in "${RXS[@]}"; do ssh "$r" "sudo pkill -f csi_stream" 2>/dev/null; done
-kill "${P[@]}" $PT 2>/dev/null; wait "${P[@]}" 2>/dev/null
+stop_all
+trap - INT TERM
 
 echo "=== [6/6] merge ==="
 "$HERE/csi_merge" "$MG" "${R[@]}"
@@ -90,3 +106,4 @@ echo ""
 echo "=== DONE ==="
 echo "  merged : $MG"
 echo "  per-RX : ${R[*]}"
+echo "  check  : ./csi_check.py $MG"

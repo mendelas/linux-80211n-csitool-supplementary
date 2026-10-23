@@ -184,10 +184,16 @@ MAIN は ch48 固定にしたいので、ch48 に強い AP が無ければその
 | `rx_id` | ✗ | **✓** |
 → **足したのは t と rx_id だけ**。CSIの中身は不変。
 
-### 読み方
+### 読み方 / 健全性チェック
 ```bash
-./read_merged ~/csi_data/日付/xxx_merged.bin        # t/rx_id/len/code を確認
+./csi_check.py                                     # 引数なし = 最新の ~/csi_data/*/*_merged.bin を検査
+./csi_check.py ~/csi_data/日付/xxx_merged.bin        # 件数 / rec/s / 取りこぼし / RSSI / perm / 振幅の安定性 → VERDICT
+./read_merged  ~/csi_data/日付/xxx_merged.bin        # 先頭レコードの t/rx_id/len/code を素で見る
 ```
+`csi_check.py` の見方（制御PCに python3 + numpy が必要）:
+- `loss` が 0、`rec/s` が DELAY 通り（1000）、`(Ntx,Nrx)` が 1 種類、`VERDICT: OK` なら解析に使える。
+- **`perm` はレコードごとに入れ替わる**（RSSI がほぼ同じ 2 本のアンテナがあると 5300 が順位を揺らす）。位相やアンテナ間の差を使うなら毎レコード perm を適用する。
+- **制御PC時刻 `t` は約 19 件ずつのバースト**（csi_stream の stdout バッファ）。RX 内の時間軸は NIC の `timestamp_low`（µs）を使う。`t` は RX 間の粗い同期（数十 ms）にだけ使う。
 CSI行列を取り出すには payload を CSIツールの bfee 形式で解釈（MATLAB: `read_bf_file.m`/`get_scaled_csi.m`、C++: `read_bfee.c` を移植）。
 
 ---
