@@ -158,6 +158,8 @@ MAIN は ch48 固定にしたいので、ch48 に強い AP が無ければその
    ./run_experiment.sh <ラベル> <秒数>     # 例: ./run_experiment.sh walking 60
    ```
    自動で: RX設定 → TX設定 → ストリーム開始 → 注入 → 停止 → **merged.bin**
+   **録画中に Enter を押すとその場で停止**（歩行収録は歩き終わった瞬間に止める。静止の尾を残さない）。
+   秒数は上限として大きめに渡しておけばよい。実際に記録した秒数は `recorded N s` と出る。
 3. 出力: `~/csi_data/YYYYMMDD/<日時>_<ラベル>_merged.bin`（+ rx0.bin / rx1.bin / ...）
 
 > **CSIは開始から数秒〜1分で流れ出す**（5GHzの立ち上がり）。実験本番はそれを待ってから。

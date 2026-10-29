@@ -1,7 +1,7 @@
 #!/bin/bash
 # Run one multi-RX CSI experiment from the control PC (pull model).
 # usage: ./run_experiment.sh <label> <experiment_seconds>
-#   <experiment_seconds> = how long to RECORD after CSI is confirmed flowing.
+#   <experiment_seconds> = how long to RECORD after CSI is confirmed flowing (Enter stops early).
 # Which machine is TX and which are RX (any number) comes from hosts.sh.
 set -u
 LABEL=${1:-exp}; SECS=${2:-60}
@@ -39,9 +39,31 @@ P=(); PT=
 stop_all() {
   ssh -o ConnectTimeout=5 "$TX" "sudo pkill -f random_packets" 2>/dev/null
   for r in "${RXS[@]}"; do ssh -o ConnectTimeout=5 "$r" "sudo pkill -f csi_stream" 2>/dev/null; done
-  kill "${P[@]}" $PT 2>/dev/null; wait "${P[@]}" $PT 2>/dev/null
+  kill "${P[@]}" $PT 2>/dev/null
+  # `wait <pid of a pipeline job>` waits for the WHOLE pipeline, i.e. also the ssh client.
+  # An ssh whose remote side was already killed can hang in the channel close (seen
+  # 2026-10-29: walk_sq1 sat in wait for 5 min). Kill our ssh children, hard if needed.
+  pkill -P $$ -x ssh 2>/dev/null; sleep 1; pkill -9 -P $$ -x ssh 2>/dev/null
+  wait "${P[@]}" $PT 2>/dev/null
 }
-trap 'echo; echo "!!! interrupted: stopping injection + streams on every node"; stop_all; exit 130' INT TERM
+merge_all() {
+  echo "=== [6/6] merge ==="
+  "$HERE/csi_merge" "$MG" "${R[@]}"
+  "$HERE/read_merged" "$MG" | tail -2
+  echo ""
+  echo "=== DONE ==="
+  echo "  merged : $MG"
+  echo "  per-RX : ${R[*]}"
+  echo "  check  : ./csi_check.py $MG"
+}
+# Ctrl-C: stop everything, and still merge whatever was recorded (a walking capture ended
+# with Ctrl-C instead of Enter is valid data).
+on_interrupt() {
+  echo; echo "!!! interrupted: stopping injection + streams on every node"; stop_all
+  if [ -s "${R[0]}" ]; then merge_all; fi
+  exit 130
+}
+trap on_interrupt INT TERM
 
 echo "=== [0/6] kill leftovers from a previous aborted run ==="
 stop_all
@@ -92,18 +114,18 @@ echo "#                                                                #"
 echo "##################################################################"
 printf '\a'; sleep 0.3; printf '\a'
 
-for r in $(seq "$SECS" -1 1); do printf "\r    recording... %4ss left    " "$r"; sleep 1; done
-echo
+# Enter stops early: walking captures must stop the moment the walk ends (a static tail
+# skews the evaluation, 08-05 note). read returns 0 on Enter, >128 after its 1 s timeout
+# (already waited), 1 on EOF when there is no tty -> sleep instead.
+T0=$(date +%s)
+for r in $(seq "$SECS" -1 1); do
+  printf "\r    recording... %4ss left   (Enter = stop now)   " "$r"
+  read -r -t 1 _ && break
+  [ $? -gt 128 ] || sleep 1
+done
+echo; echo "    recorded $(( $(date +%s) - T0 )) s"
 
 echo "=== [5/6] stop streams & injection ==="
 stop_all
 trap - INT TERM
-
-echo "=== [6/6] merge ==="
-"$HERE/csi_merge" "$MG" "${R[@]}"
-"$HERE/read_merged" "$MG" | tail -2
-echo ""
-echo "=== DONE ==="
-echo "  merged : $MG"
-echo "  per-RX : ${R[*]}"
-echo "  check  : ./csi_check.py $MG"
+merge_all
