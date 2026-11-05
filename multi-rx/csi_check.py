@@ -93,6 +93,20 @@ def check(path):
             sec = np.array([Ap[bins == k].mean(0) for k in range(bins.max() + 1) if (bins == k).any()])
             print(f"   |CSI| per antenna (perm applied): mean {Ap.mean(0).round(1)}  per-record std {Ap.std(0).round(2)}"
                   f"  1-s-mean range {(sec.max(0) - sec.min(0)).round(1)}")
+        elif have and have[0]['ntx'] > 1:
+            # read_bfee.c fills a MATLAB [Ntx Nrx 30] array column-major: column j = (tx j%Ntx, rx j//Ntx).
+            # A dead TX chain shows up as one row near zero.
+            nt, nr = have[0]['ntx'], have[0]['nrx']
+            same = [x for x in have if x['ntx'] == nt and x['nrx'] == nr]
+            M = np.zeros((nt, nr))
+            for x in same:
+                a = np.abs(x['csi']).mean(0)
+                for j in range(nt * nr):
+                    M[j % nt, x['perm'][j // nt] - 1] += a[j]
+            M /= len(same)
+            print(f"   mean |CSI| [TX stream x RX antenna] (perm applied), {len(same)} records:")
+            for k in range(nt):
+                print(f"      tx{k + 1}: " + "  ".join(f"{v:6.1f}" for v in M[k]))
         # warnings
         if lost: warn.append(f"rx{rx}: {lost} lost packets")
         if badlen: warn.append(f"rx{rx}: {badlen} records with wrong CSI length")

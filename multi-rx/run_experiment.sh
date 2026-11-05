@@ -9,7 +9,10 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 source "$HERE/hosts.sh"      # -> TX, RXS[] (rx_id = index)
 
 # ===== radio settings (edit for your setup) =====
-CH=157; BW=HT40+; RATE=0x4901; PAYLOAD=100; DELAY=1000   # DEFAULT: ch157 HT40+ = 157+161, center 5795MHz 40MHz (UNII-3; needs 5.8GHz experimental license + anechoic chamber)
+CH=157; BW=HT40+; PAYLOAD=100; DELAY=1000   # DEFAULT: ch157 HT40+ = 157+161, center 5795MHz 40MHz (UNII-3; needs 5.8GHz experimental license + anechoic chamber)
+RATE=${RATE:-0x4901}   # 0x4901 = ant A only, HT40, MCS1 (1 stream). Override per run, e.g.
+                       # RATE=0x1c911 ./run_experiment.sh ...  = ant A+B+C, HT40, MCS17 (3 streams
+                       # -> Ntx=3 CSI, for TX-side AoD). 3-antenna feed: licence confirmed 2026-11-05.
 IF=wlan1
 TXPWR=15   # dBm, i.e. the card's max (EEPROM ceiling is ~15-16 dBm).
            # This is the SETTING, not the radiated power: the 5300 tops out below it, and
@@ -127,5 +130,9 @@ echo; echo "    recorded $(( $(date +%s) - T0 )) s"
 
 echo "=== [5/6] stop streams & injection ==="
 stop_all
+# End beep (3x), AFTER the streams are stopped: a walker keeps walking until the timer ends and
+# stops on the beep, so neither a static tail (skews the evaluation) nor the walk back to press
+# Enter is recorded.
+printf '\a'; sleep 0.3; printf '\a'; sleep 0.3; printf '\a'
 trap - INT TERM
 merge_all
