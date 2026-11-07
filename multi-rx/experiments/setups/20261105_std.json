@@ -1,0 +1,61 @@
+{
+  "setup_id": "20261105_std",
+  "valid_from": "2026-11-05",
+  "used_on": ["2026-11-05 (AoD パイロット)", "2026-11-07"],
+  "description": "TX を原点に置き、RX0 を +y 側、RX1 を +x 側に置いて、その間の床の四角を歩く標準の設置。2026-11-05 の AoD パイロットと同じ (ユーザー 2026-11-07「環境は以前と全く同じ」)。",
+  "coordinate_frame": {
+    "origin": "TX のアンテナ列の中央 (ポート B の素子)",
+    "x_axis": "TX → RX1 の方向",
+    "y_axis": "TX → RX0 の方向",
+    "angle_convention": "角度はすべて +x 軸から反時計回り [deg]。アレイの角度はブロードサイド (素子の並びに直角で、歩行域を向く側) の向き",
+    "csi_track_orient": "csi-track の config の orient [rad] はアレイの軸の向きで、ブロードサイド − 90° に当たる"
+  },
+  "carrier": {"channel": 157, "bandwidth": "HT40+", "center_mhz": 5795},
+  "tx": {
+    "machine": 13,
+    "pos_m": [0.0, 0.0],
+    "broadside_deg": 45,
+    "broadside_source": "目視、実測なし (ユーザー 2026-11-05「人が動くエリアの方向、45 度くらい」、2026-11-07「移動方向を向いている」)。csi-track の AoD ノートの公称値は四角の重心の方向 40.7°",
+    "array": "3 素子の直線配列。素子間隔は約 2.5 cm (目視。λ/2 = 2.59 cm)。TX の後ろから歩行域を見て左から A・B・C (A → C は 315° 方向)",
+    "antenna_state_per_recording": "実験 config の tx.antennas に書く (1 ストリームは A のみ給電で B・C を寝かせる。3 ストリームは A・B・C とも立てる)",
+    "height_m": null,
+    "height_note": "未記録"
+  },
+  "rx": [
+    {
+      "rx_id": 0,
+      "machine": 11,
+      "pos_m": [0.0, 2.8],
+      "pos_source": "ユーザー申告 (巻尺)。csi-track の config sq20261031_rx0.json は (-0.0655, 2.7992)",
+      "broadside_deg": 315,
+      "broadside_source": "目視、実測なし (ユーザー 2026-11-07「rx0 は 315 度程度」)。csi-track の config sq20261031_rx0.json は orient -2.1929 rad = ブロードサイド 324.4° (四角の重心を向ける規則)",
+      "ant1": "TX から見て奥 (2026-10-31 のユーザー確認。sq20261031_rx0.json のコメント。2026-11-07 は再確認していない)",
+      "height_m": null
+    },
+    {
+      "rx_id": 1,
+      "machine": 12,
+      "pos_m": [3.75, 0.0],
+      "pos_source": "ユーザー申告 (巻尺)",
+      "broadside_deg": 120,
+      "broadside_source": "目視、実測なし (ユーザー 2026-11-07「rx1 が 120 度くらい」)。重心を向ける規則なら (3.75, 0) から 141.3°",
+      "ant1": "TX から見て手前 (2026-10-31 のユーザー確認。2026-11-07 は再確認していない)",
+      "height_m": null,
+      "config_warning": "csi-track の sq20261031_rx1.json は 10/31 の RX1 移動試験の位置 (3.75, -1.0)、ブロードサイド 127.25° のもの。この設置 (3.75, 0) の config は csi-track にまだ無い。2026-11-05 の AoD の解析はブロードサイド 127.5° を使った"
+    }
+  ],
+  "walking_square": {
+    "size_m": [1.6, 1.2],
+    "corners_m": {"c1": [1.008, 0.954], "c2": [2.608, 0.954], "c3": [2.608, 2.154], "c4": [1.008, 2.154]},
+    "order_ccw": ["c1", "c2", "c3", "c4"],
+    "centroid_m": [1.808, 1.554],
+    "source": "csi-track docs/notes/fig/weak-range-2rx-fgo/shape_walk5.csv (大まかな形で真値ではない)。c1 が TX に最も近い角",
+    "floor_marks": "床の印の有無・種類は未記録"
+  },
+  "room": {
+    "notes": "壁までの目測: TX から約 3 m、周辺の物まで実質約 2 m (2026-10-31 の記録)。2026-11-05 の 15 時台と 17 時台の間に物を動かした気がする (ユーザー、csi-track AoD ノート §9)",
+    "search_box_m": {"xb": [-0.4, 4.2], "yb": [-1.3, 3.2], "note": "csi-track の探索箱 (実際の壁ではない)"}
+  },
+  "unmeasured": ["TX・RX0・RX1 のブロードサイドは目視", "高さ", "TX の素子間隔は目視"],
+  "photos": "未記録 (撮ったらファイル名をここに書く)"
+}

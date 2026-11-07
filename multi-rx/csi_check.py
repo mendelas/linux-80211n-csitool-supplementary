@@ -8,7 +8,7 @@ payload[0] == 0xbb -> payload[1:] is a CSI-tool bfee record (matlab/read_bfee.c)
 Prints per-RX counts, rate, loss, timing, RSSI, antenna perm and amplitude stability,
 then a verdict line. Needs python3 + numpy on the control PC.
 """
-import sys, os, glob, struct, collections
+import sys, os, glob, json, struct, collections
 import numpy as np
 
 EXPECTED_RATE = 1000     # rec/s expected from DELAY=1000 in run_experiment.sh
@@ -54,6 +54,17 @@ def check(path):
     per, codes = load(path)
     warn = []
     print(f"file: {path}  ({os.path.getsize(path) / 1e6:.1f} MB)")
+    meta, mp = None, (path[:-len('_merged.bin')] + '_meta.json') if path.endswith('_merged.bin') else None
+    if mp and os.path.isfile(mp):
+        meta = json.load(open(mp))
+        e, res = meta.get('experiment', {}), meta.get('result', {})
+        tr = e.get('trajectory', {})
+        print(f"meta: {os.path.basename(mp)}   setup {e.get('setup')}   purpose {e.get('purpose')}"
+              f"   tx {e.get('tx', {}).get('streams')} stream(s) rate {e.get('tx', {}).get('rate')}")
+        print(f"      trajectory {tr.get('type')} {tr.get('direction', '')}: {tr.get('description', '')}")
+        print(f"      ended_by {res.get('ended_by')}   recorded_s {res.get('recorded_s')}   note: {res.get('operator_note', '')!r}")
+    else:
+        print("meta: none (recorded before the experiment-config rule of 2026-11-07, or not a merged file)")
     print("records per (rx, code):", {f"rx{r} 0x{c:02x}": n for (r, c), n in sorted(codes.items())})
     if not per:
         print("VERDICT: BAD  (no CSI records at all)"); return
@@ -113,6 +124,9 @@ def check(path):
         if zero: warn.append(f"rx{rx}: {zero} all-zero CSI records")
         if span and abs(rate - EXPECTED_RATE) > 0.05 * EXPECTED_RATE: warn.append(f"rx{rx}: {rate:.0f} rec/s, expected ~{EXPECTED_RATE}")
         if len(shapes) > 1: warn.append(f"rx{rx}: mixed (Ntx,Nrx) {dict(shapes)}")
+        want = (meta or {}).get('experiment', {}).get('tx', {}).get('streams')
+        if want is not None and any(nt != want for nt, _ in shapes):
+            warn.append(f"rx{rx}: Ntx {sorted(set(nt for nt, _ in shapes))} but the experiment config says tx.streams = {want}")
         if n < 1000: warn.append(f"rx{rx}: only {n} records")
     rxs = sorted(per)
     if len(rxs) >= 2:

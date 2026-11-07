@@ -1,0 +1,25 @@
+{
+  "label": "sq_ccw_exp",
+  "date": "2026-11-07",
+  "seconds": 90,
+  "setup": "20261105_std",
+  "session_order": 2,
+  "block": "block1_1stream",
+  "tx": {
+    "rate": "0x4901",
+    "streams": 1,
+    "antennas": "A のみ給電。B・C は寝かせる (1 ストリームの標準)"
+  },
+  "trajectory": {
+    "type": "square",
+    "direction": "ccw",
+    "path": "setup の walking_square (1.6 x 1.2 m)",
+    "start_corner": "c1 (1.008, 0.954)、TX に最も近い角",
+    "description": "開始ベル (2 回) で c1 から歩き始め、四角を反時計回り (左回り)に止まらず何周もする。角でも止まらない。自然な速さ。終了ベル (3 回) で止まる"
+  },
+  "purpose": "exploration",
+  "purpose_note": "探索用。同じ型の _conf と対 (計画 2026-11-04-experiment-plan-after-team §4 D の「1 本は探索、1 本は封印」と同じ形)。Doppler 格子・参照選択・range の棄却などの探索に使ってよい",
+  "people": "歩行者 1 名 (操作者が兼ねる)。歩行域にほかの人はいない",
+  "setup_change_before": "なし",
+  "notes": ""
+}

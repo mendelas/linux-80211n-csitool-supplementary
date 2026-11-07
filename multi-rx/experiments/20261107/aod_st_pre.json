@@ -1,0 +1,22 @@
+{
+  "label": "aod_st_pre",
+  "date": "2026-11-07",
+  "seconds": 60,
+  "setup": "20261105_std",
+  "session_order": 7,
+  "block": "block2_3stream",
+  "tx": {
+    "rate": "0x1c911",
+    "streams": 3,
+    "antennas": "A・B・C とも立てて給電 (3 ストリーム、MCS 17)。3 本給電は免許の範囲内と確認済み (2026-11-05)"
+  },
+  "trajectory": {
+    "type": "static",
+    "description": "静止。B・C を立てた直後、3 ストリームの歩行の前。開始ベルから終了ベルまで誰も動かない"
+  },
+  "purpose": "calibration",
+  "purpose_note": "TX 3 本給電の静止。TX 側の B_t と混合 (csi-track aod-pilot-health §7.4) の基準。TX は収録ごとに再初期化されるので、状態 (素子ごとの 0/π) は収録ごとに決まる",
+  "people": "部屋の中は操作者 1 名だけで、歩行域の外で動かない。歩行域に人はいない",
+  "setup_change_before": "TX の B・C を寝かせた状態から立てた (位置は動かしていない)",
+  "notes": ""
+}

@@ -1,0 +1,22 @@
+{
+  "label": "st_pre",
+  "date": "2026-11-07",
+  "seconds": 60,
+  "setup": "20261105_std",
+  "session_order": 1,
+  "block": "block1_1stream",
+  "tx": {
+    "rate": "0x4901",
+    "streams": 1,
+    "antennas": "A のみ給電。B・C は寝かせる (1 ストリームの標準)"
+  },
+  "trajectory": {
+    "type": "static",
+    "description": "静止。1 ストリームの歩行の前。開始ベルから終了ベルまで誰も動かない"
+  },
+  "purpose": "calibration",
+  "purpose_note": "歩行の前の静止。収録中に設置が動いていないことの基準と、RX 側の B (AoA の切片) の基準",
+  "people": "部屋の中は操作者 1 名だけで、歩行域の外で動かない。歩行域に人はいない",
+  "setup_change_before": "なし",
+  "notes": ""
+}

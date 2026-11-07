@@ -1,0 +1,25 @@
+{
+  "label": "sq_cw_conf",
+  "date": "2026-11-07",
+  "seconds": 90,
+  "setup": "20261105_std",
+  "session_order": 5,
+  "block": "block1_1stream",
+  "tx": {
+    "rate": "0x4901",
+    "streams": 1,
+    "antennas": "A のみ給電。B・C は寝かせる (1 ストリームの標準)"
+  },
+  "trajectory": {
+    "type": "square",
+    "direction": "cw",
+    "path": "setup の walking_square (1.6 x 1.2 m)",
+    "start_corner": "c1 (1.008, 0.954)、TX に最も近い角",
+    "description": "開始ベル (2 回) で c1 から歩き始め、四角を時計回り (右回り)に止まらず何周もする。角でも止まらない。自然な速さ。終了ベル (3 回) で止まる"
+  },
+  "purpose": "confirmation",
+  "purpose_note": "Doppler 格子 (csi-track 2026-11-06-doppler-node-grid §9 (b)「新しい収録で 1 回の確認」) の確認用。収録後、csi-track の docs/registry/confirmation_data.txt に封印登録する (ユーザー)。健全性検査 (csi_check) 以外で読まない",
+  "people": "歩行者 1 名 (操作者が兼ねる)。歩行域にほかの人はいない",
+  "setup_change_before": "なし",
+  "notes": ""
+}
