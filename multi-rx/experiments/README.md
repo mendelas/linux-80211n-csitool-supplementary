@@ -13,7 +13,7 @@ cd ~/linux-80211n-csitool-supplementary/multi-rx
 |---|---|
 | `experiments/setups/<setup_id>.json` | 設置: 座標系と角度の規約、TX・各 RX の位置と向き (ブロードサイド、+x から反時計回り)、素子の並び、歩行の四角、部屋、目視か実測か |
 | `experiments/<YYYYMMDD>/<label>.json` | 実験 1 本: ラベル、秒数、TX のモード (rate・ストリーム数・アンテナの状態)、setup の id、軌跡、目的、人の配置、直前の設置変更 |
-| `~/csi_data/<YYYYMMDD>/<stamp>_<label>/<stamp>_<label>_meta.json` | 収録時に `run_experiment.sh` が書く記録。上の 2 つの写し + 電波設定 + ホスト + git の版 + 事象の時刻 (開始ベルなど) + 終わり方 + 操作者のメモ。**収録データと同じディレクトリに置く** (1 収録 1 ディレクトリ: rxN.bin・merged.bin・meta.json。ユーザー 2026-11-07) |
+| `~/csi_data/<YYYYMMDD>/<stamp>_<label>/<stamp>_<label>_meta.json` | 収録時に `run_experiment.sh` が書く記録。上の 2 つの写し + 電波設定 + ホスト + git の版 + 事象の時刻 (開始ベルなど) + 終わり方。収録の最後のメモ入力は無い (2026-11-07 に削除。メモは別 PC でデータを見るときに `result.operator_note` へ書く)。**収録データと同じディレクトリに置く** (1 収録 1 ディレクトリ: rxN.bin・merged.bin・meta.json。ユーザー 2026-11-07) |
 
 設置が変わったら (RX を動かした、TX を回した) 新しい setup を作る。B・C の寝かせ / 立てのように収録ごとに変わるものは実験 config の `tx.antennas` に書く。
 
@@ -36,4 +36,4 @@ cd ~/linux-80211n-csitool-supplementary/multi-rx
 ## 2026-11-07 より前の収録
 
 - 2026-11-07 の 16:37〜16:55 の 7 本 (`st_pre` 〜 `aod_st_pre`) は旧形式で撮った。`_meta.json` は収録後に作り、`backfilled` 欄に作り方と未確認の点を書いた。11/07 の 10 本は収録後に 1 収録 1 ディレクトリへ移した (`relocated` 欄)。
-- それより前 (2026-07-24 〜 2026-11-05) の収録は日付フォルダの直下にある (csi-track のノート・台帳がそのパスを参照しているので動かしていない)。`_meta.json` は csi-track のノート・config から復元して、データの隣に置く (`backfilled` 欄に出所と確度)。
+- それより前 (2026-07-24 〜 2026-11-05) の 64 収録も 2026-11-07 に 1 収録 1 ディレクトリへ移した。古いパスにはシンボリックリンクを残した (csi-track のノート・台帳が古いパスを参照しているため)。移動の記録と対応表は csi-track の `docs/csi_data_layout.md`・`docs/csi_data_relocation_20261107.tsv`。`_meta.json` は csi-track のノート・config から復元して各ディレクトリに置く (`backfilled` 欄に出所と確度)。

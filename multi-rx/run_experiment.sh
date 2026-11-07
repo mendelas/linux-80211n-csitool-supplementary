@@ -5,7 +5,7 @@
 #   label, seconds (how long to RECORD after CSI flows; Enter stops early), TX rate/streams/antennas,
 #   setup id (experiments/setups/<id>.json: positions, angles, antenna states), trajectory, purpose.
 #   Without it the script refuses to run. The config + setup + radio + hosts + beep times + how the
-#   run ended + the operator's note go to <stamp>_<label>_meta.json next to the .bin files.
+#   run ended go to ~/csi_data/<YYYYMMDD>/<stamp>_<label>/<stamp>_<label>_meta.json with the .bin files.
 # Which machine is TX and which are RX (any number) comes from hosts.sh.
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -86,25 +86,18 @@ merge_all() {
   echo "  meta   : $META"
   echo "  check  : ./csi_check.py $MG"
 }
-# The operator's note on what actually happened (someone entered, the walker stopped, ...).
-ask_note() {
-  if [ -t 0 ]; then
-    read -r -p "Note (what happened / anything unusual; Enter = none): " NOTE
-    "$HERE/exp_meta.py" set "$META" operator_note "$NOTE"
-  fi
-}
+# No note prompt at the end (removed 2026-11-07, user: it gets in the way; notes are written when
+# the data is reviewed on the other PC, into the meta's result.operator_note).
 # Ctrl-C: stop everything, and still merge whatever was recorded (a walking capture ended
 # with Ctrl-C instead of Enter is valid data).
 on_interrupt() {
   # Run the cleanup ONCE: further Ctrl-C presses are ignored until it is done (2026-11-07: without
-  # this, each extra Ctrl-C restarted the handler, and Ctrl-C at the note prompt looped for 90 s).
+  # this, each extra Ctrl-C restarted the handler).
   trap '' INT TERM
   echo; echo "!!! interrupted: stopping injection + streams on every node"; ev interrupted; stop_all
   ev streams_stopped
   "$HERE/exp_meta.py" set "$META" ended_by interrupted
   if [ -s "${R[0]}" ]; then merge_all; fi
-  trap - INT TERM          # Ctrl-C at the note prompt now just exits (the note stays empty)
-  ask_note
   exit 130
 }
 trap on_interrupt INT TERM
@@ -183,4 +176,3 @@ ev streams_stopped
 printf '\a'; sleep 0.3; printf '\a'; sleep 0.3; printf '\a'
 trap - INT TERM
 merge_all
-ask_note
