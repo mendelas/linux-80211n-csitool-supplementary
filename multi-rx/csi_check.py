@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """csi_check.py: is this merged.bin (or rxN.bin) a healthy capture?
 
-usage: ./csi_check.py [file ...]        default: newest ~/csi_data/*/*_merged.bin
+usage: ./csi_check.py [file ...]        default: newest ~/csi_data/<date>/<stamp>_<label>/*_merged.bin
+                                         (or the older flat ~/csi_data/<date>/*_merged.bin)
 
 Record: [double t][uint8 rx_id][uint16 len][len bytes payload]
 payload[0] == 0xbb -> payload[1:] is a CSI-tool bfee record (matlab/read_bfee.c).
@@ -150,7 +151,9 @@ def check(path):
 if __name__ == '__main__':
     files = sys.argv[1:]
     if not files:
-        cands = glob.glob(os.path.expanduser('~/csi_data/*/*_merged.bin'))
+        # per-recording directories (2026-11-07 on) and the older flat date folders
+        cands = (glob.glob(os.path.expanduser('~/csi_data/*/*/*_merged.bin'))
+                 + glob.glob(os.path.expanduser('~/csi_data/*/*_merged.bin')))
         if not cands: sys.exit("no file given and no ~/csi_data/*/*_merged.bin found")
         files = [max(cands, key=os.path.getmtime)]
     for i, f in enumerate(files):

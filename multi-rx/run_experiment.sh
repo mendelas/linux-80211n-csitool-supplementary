@@ -33,21 +33,24 @@ TXPWR=15   # dBm, i.e. the card's max (EEPROM ceiling is ~15-16 dBm).
            # the antenna-port output at 15 was MEASURED under the 25 mW 指定事項 of the
            # 5.8GHz experimental licence. So max setting is still inside the licence.
 REMOTE=~/linux-80211n-csitool-supplementary
-OUTDIR=$HOME/csi_data/$(date +%Y%m%d)
+DAYDIR=$HOME/csi_data/$(date +%Y%m%d)
 STARTUP_MARGIN=180        # extra injection seconds to cover 5GHz CSI startup
 # ================================================
 NRX=${#RXS[@]}
 [ "$NRX" -ge 1 ] || { echo "hosts.sh: RX_NODES is empty"; exit 1; }
 for r in "${RXS[@]}"; do [ "$r" = "$TX" ] && { echo "hosts.sh: $r is both TX and RX"; exit 1; }; done
-mkdir -p "$OUTDIR"
 STAMP=$(date +%Y%m%d_%H%M%S)
+# One directory per recording (2026-11-07): ~/csi_data/<YYYYMMDD>/<stamp>_<label>/ holds the rxN.bin,
+# the merged.bin and the meta.json. An aborted retake is removed by deleting its whole directory.
+OUTDIR=$DAYDIR/${STAMP}_${LABEL}
+ls -d "$DAYDIR"/*_"${LABEL}" >/dev/null 2>&1 && \
+  echo "!!! 今日すでに $LABEL の収録がある: $(ls -d "$DAYDIR"/*_"${LABEL}" | tr '\n' ' ')。撮り直しなら、中断した回のディレクトリごと消すこと。"
+mkdir -p "$OUTDIR"
 R=(); for i in $(seq 0 $((NRX-1))); do R+=("$OUTDIR/${STAMP}_${LABEL}_rx$i.bin"); done
 MG=$OUTDIR/${STAMP}_${LABEL}_merged.bin
 META=$OUTDIR/${STAMP}_${LABEL}_meta.json
 NPKTS=$(( (SECS + STARTUP_MARGIN) * 1000000 / DELAY ))
-echo "TX=$TX   RX=${RXS[*]}   ($NRX RX)   config=$EXP   rate=$RATE"
-ls "$OUTDIR"/*_"${LABEL}"_meta.json >/dev/null 2>&1 && \
-  echo "!!! 今日すでに $LABEL の収録がある。撮り直しなら、中断した回の rx*.bin / merged.bin / meta.json を消すこと。"
+echo "TX=$TX   RX=${RXS[*]}   ($NRX RX)   config=$EXP   rate=$RATE   out=$OUTDIR"
 CH=$CH BW=$BW RATE=$RATE TXPWR=$TXPWR PAYLOAD=$PAYLOAD DELAY=$DELAY NPKTS=$NPKTS IF=$IF TX=$TX \
   RXS="${RXS[*]}" RFILES="${R[*]}" MG=$MG "$HERE/exp_meta.py" start "$EXP" "$META" "$STAMP" || exit 1
 # Timed events on the control-PC clock (CLOCK_REALTIME = the clock of the merged records' t).
