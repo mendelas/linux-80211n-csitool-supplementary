@@ -155,17 +155,31 @@ MAIN は ch48 固定にしたいので、ch48 に強い AP が無ければその
 2. 制御PC:
    ```bash
    cd ~/linux-80211n-csitool-supplementary/multi-rx
-   ./run_experiment.sh experiments/<YYYYMMDD>/<ラベル>.json   # 例: ./run_experiment.sh experiments/20261107/st_pre.json
+   ./run_experiment.sh --prepare                               # 設置ごとに1回（再起動・CH/BW 変更の後も）。config 不要
+   ./run_experiment.sh experiments/<YYYYMMDD>/<ラベル>.json   # 収録。何回でも。例: ./run_experiment.sh experiments/20261107/st_pre.json
    ```
    **収録 1 本ごとに実験 config が必須**（2026-11-07 から。軌跡・配置・角度・TX モード・目的を書く。書き方は [experiments/README.md](experiments/README.md)）。
    config が無い・今日の日付でない・rate とストリーム数が合わないときは撮れない。収録の記録は `<日時>_<ラベル>_meta.json` に残る。
    直前の収録の確認は `./csi_check.py`（引数なしで最新の収録を見る）。
-   自動で: RX設定 → TX設定 → ストリーム開始 → 注入 → 停止 → **merged.bin**
+   収録は: 準備の確認 → ストリーム開始 → 注入 → 停止 → **merged.bin**（ドライバは再読込しない。未準備ならエラーで止まり、準備コマンドを表示）
    **録画中に Enter を押すとその場で停止**（歩行収録は歩き終わった瞬間に止める。静止の尾を残さない）。
    秒数は上限として大きめに渡しておけばよい。実際に記録した秒数は `recorded N s` と出る。
 3. 出力: 収録 1 本ごとのディレクトリ `~/csi_data/YYYYMMDD/<日時>_<ラベル>/` に `<日時>_<ラベル>_merged.bin`・`_rx0.bin` / `_rx1.bin` / ...・`_meta.json`（2026-11-07 から。それより前は日付フォルダの直下）。中断した撮り直しはディレクトリごと消す。
 
 > **CSIは開始から数秒〜1分で流れ出す**（5GHzの立ち上がり）。実験本番はそれを待ってから。
+
+> **★ 設置 → 準備1回 → 収録をくり返す（2026-11-09〜）**: iwlwifi の再読込のたびに 5300 が再初期化され、素子1本の位相が π 単位で変わる（csi-track 11/04）。
+> だから再読込（`rx_setup.sh` / `tx_setup.sh`）は設置ごとに `--prepare` で1回だけ。収録は確認（`radio_check.sh`）と csi_stream / random_packets の起動だけ。
+> 準備し直して撮るなら `--resetup <config>`（旧動作）。TX が別セッションで準備した mon0 を LORCON が開けないときは `--resetup-tx <config>`（TX だけ再準備、RX は保持）。
+> 再読込あり/なしで π の型が保たれるかの検証: `./reload_ab.sh experiments/<YYYYMMDD>/<静止の config>.json`（`--resetup` 収録と通常収録を続けて撮る）。
+
+**新手順の初回の実機確認**（2026-11-09 時点で実機未確認。モック ssh でしか試していない）:
+1. `--prepare` で全ノードが `ready:` を出す。`bandwidth ... NOT verified` が出たら、その iw は帯域を表示できない（チャネルだけ確認される）。
+2. 通常収録を2回続けて撮る。各収録の `_meta.json` の `result.radio_rx0` などの `ifindex` が、`radio_prepare.log` の値から変わらない（= 再読込なし）。CSI が流れる。
+3. TX: 別セッションで準備した mon0 に random_packets が注入できるか（cadcc26 の LORCON 問題）。`Error opening LORCON interface` なら以後 `--resetup-tx`。`TX power: 15 dBm (applied)` が出る。3 ストリームの rate でも注入できる。
+4. 未準備で止まるか: RX 1台で `sudo iw dev wlan1 set channel 48 HT20` → 収録が `NOT READY` と準備コマンドを出して止まる → `--prepare` で戻す。
+5. 録画中の Ctrl-C で全ノードの注入・ストリームが止まり、merged.bin ができる（後始末は従来どおり）。
+6. `reload_ab.sh` の収録を csi-track で比較（keep で NIC timestamp が再始動しない、π の型が round 内で共通）。
 
 ---
 
@@ -223,7 +237,7 @@ CSI行列を取り出すには payload を CSIツールの bfee 形式で解釈�
 
 ## 7. 別の実験セットアップを作るには
 
-- **チャンネル/帯域を変える** → `run_experiment.sh` の `CH`/`BW`/`RATE` を変えるだけ（全機に自動反映。rx_setup.sh/tx_setup.sh は引数で受け取る）
+- **チャンネル/帯域を変える** → `run_experiment.sh` の `CH`/`BW` を変えて `./run_experiment.sh --prepare` を1回（全機に反映。rx_setup.sh/tx_setup.sh は引数で受け取る。rate は実験 config）
 - **レート/時間を変える** → `DELAY`（pkt/s）と実行時の秒数引数
 - **RXを増やす/減らす・TXを別機に** → `hosts.sh` の `RX_NODES=( ... )` / `TX_NODE=` を書き換えるだけ。
   setup / csi_recv / 到達待ち判定 / csi_merge / 停止処理はすべて台数に追従する（`csi_merge` は可変長入力、rx_id=添字）
@@ -243,6 +257,8 @@ CSI行列を取り出すには payload を CSIツールの bfee 形式で解釈�
 | `make` が Error 127 | 制御PCに `g++` が無い → `apt-get install build-essential` |
 | 起動したら Memtest86+ | `GRUB_DEFAULT` が番号指定でmemtestを選択 → **サブメニュー名で指定** |
 | WiFiが繋がらない(RX/TX) | CSIファーム有効中は正常（標準ファームに戻せば復帰） |
+| 収録が `NOT READY` で止まる | 再起動・CH変更・診断スクリプト（txpower_sweep / find_ht40_limit / tx_reinit）の後 → `./run_experiment.sh --prepare` |
+| `the TX ssh ended` で止まる | 出力に `Error opening LORCON interface` があれば `--resetup-tx <config>` で収録（TX だけ同じ ssh で準備） |
 | CSIが0のまま | ①全機のchが一致しているか ②空きchか ③`monitor_tx_rate`(0x41xx)か ④立ち上がり1分待ったか |
 | 受信はできるがCSI 0 | connector ID不一致（`netlink/iwl_connector.h` を `10 + 0xf`）/ 標準ファームを読んでいる |
 | ふたを閉じると止まる | ふた閉じサスペンドを無効化（電源設定 / `HandleLidSwitch=ignore`） |
@@ -251,7 +267,7 @@ CSI行列を取り出すには payload を CSIツールの bfee 形式で解釈�
 
 ## 9. ラップトップを再起動した時の流れ
 
-**結論：設定が済んでいれば、電源を入れるだけ。手動操作は不要。**
+**結論：設定が済んでいれば、電源を入れて `./run_experiment.sh --prepare` を1回。**
 
 ### 再起動しても自動で戻るもの（永続）
 | 項目 | 復帰 | 理由 |
@@ -263,9 +279,9 @@ CSI行列を取り出すには payload を CSIツールの bfee 形式で解釈�
 | NOPASSWD sudo / 各スクリプト | ✓ | ファイル |
 | ふた閉じ無効化 | ✓ | 設定ファイル |
 
-### 再起動で消えるもの（＝毎回 `run_experiment.sh` が自動でやり直す）
+### 再起動で消えるもの（＝再起動後に `./run_experiment.sh --prepare` を1回）
 - モニターモード / チャンネル / `connector_log` / `mon0` / `monitor_tx_rate`
-→ **揮発するのが正常**。実験のたびに `rx_setup.sh` / `tx_setup.sh` が設定するので**手動不要**。
+→ **揮発するのが正常**。`--prepare` が `rx_setup.sh` / `tx_setup.sh` で設定し直す。収録ごとには設定しない（忘れると収録が準備コマンドを表示して止まる）。
 
 ### 手順
 ```bash
@@ -275,7 +291,8 @@ ssh kota@192.168.100.11 "sudo reboot"
 # 3) 制御PCから復帰確認
 ./check_nodes.sh 11
 #    → kernel 3.5.7+ と csifw csi が出ればOK
-# 4) そのまま実験 (実験 config を作ってから)
+# 4) 準備1回 → 実験 (実験 config を作ってから)
+./run_experiment.sh --prepare
 ./run_experiment.sh experiments/<YYYYMMDD>/<ラベル>.json
 ```
 
