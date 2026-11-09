@@ -1,5 +1,9 @@
 #!/bin/bash
-# TX radio + rate setup only (invoked over ssh by the control PC). No injection here.
+# TX radio + rate PREPARE only (invoked over ssh by the control PC). No injection here.
+# Run it ONCE per installation (./run_experiment.sh --prepare), or inside the injection ssh
+# with --resetup / --resetup-tx. A normal recording does NOT reload the driver: it runs
+# `radio_check.sh tx CH BW RATE TXPWR` (check, then the same txpower + rate commands as
+# below) and random_packets in one ssh session. Keep those two copies in sync.
 # usage: tx_setup.sh [CH] [BW] [RATE] [IF] [TXPWR_dBm]
 CH=${1:-157}; BW=${2:-HT40+}; RATE=${3:-0x4901}; IF=${4:-wlan1}   # default: ch157 HT40+ = 157+161, center 5795MHz, MCS1 HT (UNII-3, licensed)
 TXPWR=${5:-15}   # dBm, i.e. the card's max (EEPROM ceiling is ~15-16 dBm). This is the
