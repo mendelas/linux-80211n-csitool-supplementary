@@ -1,22 +1,50 @@
 #!/bin/bash
 # Run one multi-RX CSI experiment from the control PC (pull model).
-# usage: ./run_experiment.sh experiments/<YYYYMMDD>/<label>.json
+# usage: ./run_experiment.sh --prepare                                  once per installation
+#        ./run_experiment.sh [--resetup | --resetup-tx] experiments/<YYYYMMDD>/<label>.json
 #   EVERY recording needs its own experiment config (rule 2026-11-07, experiments/README.md):
 #   label, seconds (how long to RECORD after CSI flows; Enter stops early), TX rate/streams/antennas,
 #   setup id (experiments/setups/<id>.json: positions, angles, antenna states), trajectory, purpose.
 #   Without it the script refuses to run. The config + setup + radio + hosts + beep times + how the
 #   run ended go to ~/csi_data/<YYYYMMDD>/<stamp>_<label>/<stamp>_<label>_meta.json with the .bin files.
+#   A recording does NOT reload iwlwifi: it checks every radio (radio_check.sh) and only starts
+#   csi_stream / random_packets. A reload re-initializes the 5300 and moves one RX chain's phase
+#   by a multiple of pi, so prepare once and record many times on the same NIC init.
+#   --prepare     reload + monitor + channel on every node (rx_setup.sh / tx_setup.sh), check, exit.
+#                 No config: the TX is set to 0x4901 and each recording re-applies its tx.rate.
+#   --resetup     the old behaviour: prepare every node again, then record
+#   --resetup-tx  prepare only the TX again, inside the injection ssh (fallback if LORCON will
+#                 not open a mon0 prepared in an earlier ssh session); the RX keep their init
+#   The meta records which of these ran (result.radio_prep) and each node's check line, whose
+#   ifindex changes on every driver reload.
 # Which machine is TX and which are RX (any number) comes from hosts.sh.
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
+MODE=record; RESETUP_RX=0; RESETUP_TX=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --prepare)    MODE=prepare ;;
+    --resetup)    RESETUP_RX=1; RESETUP_TX=1 ;;
+    --resetup-tx) RESETUP_TX=1 ;;
+    -*)           echo "unknown option: $1"; exit 2 ;;
+    *)            break ;;
+  esac
+  shift
+done
 EXP=${1:-}
-if [ $# -ne 1 ] || [ ! -f "$EXP" ] || [ "${EXP##*.}" != "json" ]; then
-  echo "usage: ./run_experiment.sh experiments/<YYYYMMDD>/<label>.json"
-  echo "  収録ごとに実験 config が必須 (書き方: experiments/README.md)。<label> <秒数> の形は廃止 (2026-11-07)。"
-  exit 1
+if [ "$MODE" = prepare ]; then
+  [ $# -eq 0 ] || { echo "usage: ./run_experiment.sh --prepare   (no experiment config)"; exit 1; }
+  LABEL=prepare; SECS=0; CFG_RATE=0x4901
+else
+  if [ $# -ne 1 ] || [ ! -f "$EXP" ] || [ "${EXP##*.}" != "json" ]; then
+    echo "usage: ./run_experiment.sh [--resetup | --resetup-tx] experiments/<YYYYMMDD>/<label>.json"
+    echo "       ./run_experiment.sh --prepare     (設置ごとに1回: ドライバ再読込・monitor・チャネル)"
+    echo "  収録ごとに実験 config が必須 (書き方: experiments/README.md)。<label> <秒数> の形は廃止 (2026-11-07)。"
+    exit 1
+  fi
+  CHK=$("$HERE/exp_meta.py" check "$EXP") || exit 1
+  read -r LABEL SECS CFG_RATE <<< "$CHK"
 fi
-CHK=$("$HERE/exp_meta.py" check "$EXP") || exit 1
-read -r LABEL SECS CFG_RATE <<< "$CHK"
 source "$HERE/hosts.sh"      # -> TX, RXS[] (rx_id = index)
 
 # ===== radio settings (edit for your setup) =====
@@ -39,6 +67,46 @@ STARTUP_MARGIN=180        # extra injection seconds to cover 5GHz CSI startup
 NRX=${#RXS[@]}
 [ "$NRX" -ge 1 ] || { echo "hosts.sh: RX_NODES is empty"; exit 1; }
 for r in "${RXS[@]}"; do [ "$r" = "$TX" ] && { echo "hosts.sh: $r is both TX and RX"; exit 1; }; done
+
+# Prepare = driver reload + monitor + channel (once per installation, or --resetup).
+prepare_rx() { for r in "${RXS[@]}"; do ssh "$r" "~/rx_setup.sh $CH $BW"; done; }
+# Read-only check of every radio. radio_check.sh is piped from here, so nodes need no copy.
+# usage: check_radios rx|all     (rx: the TX is about to be prepared inside the injection ssh)
+# Leaves "radio_<node> <its check line>" pairs in RC_LINES for the meta.
+RC_LINES=()
+check_radios() {
+  local bad=0 i out
+  for i in $(seq 0 $((NRX-1))); do
+    echo "  rx$i ${RXS[$i]}"
+    out=$(ssh -o ConnectTimeout=5 "${RXS[$i]}" "bash -s -- rx $CH $BW $IF" < "$HERE/radio_check.sh") || bad=1
+    echo "$out"; RC_LINES+=("radio_rx$i" "$(sed -n '1s/^ *//p' <<<"$out")")
+  done
+  if [ "$1" = all ]; then
+    echo "  tx  $TX"
+    out=$(ssh -o ConnectTimeout=5 "$TX" "bash -s -- tx $CH $BW" < "$HERE/radio_check.sh") || bad=1
+    echo "$out"; RC_LINES+=("radio_tx" "$(sed -n '1s/^ *//p' <<<"$out")")
+  fi
+  return $bad
+}
+
+if [ "$MODE" = prepare ]; then
+  echo "=== PREPARE (once per installation): driver reload + monitor + ch$CH $BW on every node ==="
+  # leftovers of an aborted run first, as stop_all does
+  ssh -o ConnectTimeout=5 "$TX" "sudo pkill -f random_packets" 2>/dev/null
+  for r in "${RXS[@]}"; do ssh -o ConnectTimeout=5 "$r" "sudo pkill -f csi_stream" 2>/dev/null; done
+  prepare_rx
+  ssh "$TX" "~/tx_setup.sh $CH $BW $RATE $IF $TXPWR"
+  echo "=== check ==="
+  check_radios all; ok=$?
+  # one line per prepare, so a recording's ifindex (in its meta) can be traced to its prepare
+  mkdir -p "$DAYDIR"
+  echo "$(date +%FT%T) prepare ch$CH $BW ok=$([ $ok -eq 0 ] && echo yes || echo NO) ${RC_LINES[*]}" >> "$DAYDIR/radio_prepare.log"
+  [ $ok -eq 0 ] || { echo "!!!!! not ready after prepare (see above)"; exit 1; }
+  echo "prepared (logged in $DAYDIR/radio_prepare.log)."
+  echo "Record as often as needed on this NIC init:  ./run_experiment.sh experiments/<YYYYMMDD>/<label>.json"
+  exit 0
+fi
+
 STAMP=$(date +%Y%m%d_%H%M%S)
 # One directory per recording (2026-11-07): ~/csi_data/<YYYYMMDD>/<stamp>_<label>/ holds the rxN.bin,
 # the merged.bin and the meta.json. An aborted retake is removed by deleting its whole directory.
@@ -105,8 +173,23 @@ trap on_interrupt INT TERM
 echo "=== [0/6] kill leftovers from a previous aborted run ==="
 stop_all
 
-echo "=== [1/6] RX radio setup (ch$CH $BW) ==="
-for r in "${RXS[@]}"; do ssh "$r" "~/rx_setup.sh $CH $BW"; done
+if [ "$RESETUP_RX" = 1 ]; then
+  echo "=== [1/6] RX radio setup (ch$CH $BW): driver reload (--resetup), then check ==="
+  prepare_rx
+else
+  echo "=== [1/6] check radios are prepared (ch$CH $BW); no driver reload ==="
+fi
+if [ "$RESETUP_TX" = 1 ]; then SCOPE=rx; else SCOPE=all; fi
+if ! check_radios $SCOPE; then
+  echo "!!!!! radios not prepared (see above). Recordings no longer reload the driver."
+  echo "!!!!! prepare once for this installation:  ./run_experiment.sh --prepare"
+  echo "!!!!! or prepare + record in one go:       ./run_experiment.sh --resetup $EXP"
+  # Nothing was recorded: drop this run's directory, which holds only the meta written above.
+  rm -f "$META"; rmdir "$OUTDIR" 2>/dev/null
+  exit 1
+fi
+if [ "$RESETUP_RX" = 1 ]; then PREP=resetup; elif [ "$RESETUP_TX" = 1 ]; then PREP=resetup_tx; else PREP=check; fi
+"$HERE/exp_meta.py" set "$META" radio_prep "$PREP" "${RC_LINES[@]}"
 
 echo "=== [2/6] start RX streams -> control PC ==="
 P=()
@@ -116,9 +199,18 @@ for i in $(seq 0 $((NRX-1))); do
 done
 sleep 2
 
-# ★ TX setup + injection MUST be one ssh session (LORCON fails across sessions)
-echo "=== [3/6] TX setup + inject in ONE ssh ($NPKTS pkts, ${TXPWR}dBm) ==="
-ssh "$TX" "~/tx_setup.sh $CH $BW $RATE $IF $TXPWR; cd $REMOTE/injection && sudo ./random_packets $NPKTS $PAYLOAD 1 $DELAY >/dev/null 2>&1" &
+# ★ TX setup + injection MUST be one ssh session (LORCON fails across sessions, cadcc26).
+#   Normal: radio_check.sh tx (check; txpower + monitor_tx_rate = the config's tx.rate; no reload)
+#   && random_packets. --resetup / --resetup-tx: the full tx_setup.sh (driver reload) in that session.
+#   random_packets' stderr is kept so "Error opening LORCON interface" is visible.
+INJECT="cd $REMOTE/injection && sudo ./random_packets $NPKTS $PAYLOAD 1 $DELAY >/dev/null"
+if [ "$RESETUP_TX" = 1 ]; then
+  echo "=== [3/6] TX setup (driver reload) + inject in ONE ssh ($NPKTS pkts, ${TXPWR}dBm) ==="
+  ssh "$TX" "~/tx_setup.sh $CH $BW $RATE $IF $TXPWR; $INJECT" &
+else
+  echo "=== [3/6] TX check + txpower/rate (no reload) + inject in ONE ssh ($NPKTS pkts, ${TXPWR}dBm) ==="
+  ssh "$TX" "bash -s -- tx $CH $BW $RATE $TXPWR && $INJECT" < "$HERE/radio_check.sh" &
+fi
 PT=$!
 
 echo "=== [4/6] waiting for CSI to flow on ALL $NRX RX (up to 120s) ==="
@@ -126,6 +218,12 @@ prev=(); for i in $(seq 0 $((NRX-1))); do prev+=(0); done
 ready=0
 for t in $(seq 1 120); do
   sleep 1
+  if ! kill -0 "$PT" 2>/dev/null; then
+    echo; echo "!!!!! the TX ssh ended before CSI flowed: TX not ready or injection failed (output above)."
+    echo "!!!!! 'Error opening LORCON interface' -> LORCON wants mon0 set up in the same ssh: add --resetup-tx"
+    echo "!!!!! nothing usable was recorded: delete $OUTDIR"
+    stop_all; "$HERE/exp_meta.py" set "$META" ended_by tx_session_ended; exit 1
+  fi
   ok=1; line=""
   for i in $(seq 0 $((NRX-1))); do
     s=$(stat -c%s "${R[$i]}" 2>/dev/null || echo 0)
