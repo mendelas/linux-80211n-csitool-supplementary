@@ -242,7 +242,7 @@ CSI行列を取り出すには payload を CSIツールの bfee 形式で解釈�
 - **RXを増やす/減らす・TXを別機に** → `hosts.sh` の `RX_NODES=( ... )` / `TX_NODE=` を書き換えるだけ。
   setup / csi_recv / 到達待ち判定 / csi_merge / 停止処理はすべて台数に追従する（`csi_merge` は可変長入力、rx_id=添字）
 - **新しいラップトップを足す** → 3-2（`node_setup.sh <N>`）→ `ALL_NODES` に追加 → `check_nodes.sh`
-- **単体で取りたい** → `rx_capture.sh`（ローカル保存版, 制御PC不要）
+- **単体で取りたい** → `rx_capture.sh`（ローカル保存版, 制御PC不要）。最初の 1 本だけ `~/rx_capture.sh --resetup <ラベル>`、以後は `--resetup` なし（再読込せず確認のみ。再読込のたびに π の型が変わり得るため）
 
 ---
 
