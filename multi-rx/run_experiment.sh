@@ -47,6 +47,22 @@ else
 fi
 source "$HERE/hosts.sh"      # -> TX, RXS[] (rx_id = index)
 
+# ===== total station ground truth (optional, 2026-11-20) =====
+# Experiment config "ts": {"survey": "<json from ~/total_station_ros2/ts_survey.py>"} -> ts_record.py
+# records the TS16 prism track into <stamp>_<label>_ts/ (rosbag2), only from the start beep to the
+# record end. The survey (antenna positions/angles) goes into the same bag. No "ts" key = no TS.
+# The TS16 has no GeoCOM Robotics licence: LOCK it onto the prism on its own screen before starting.
+TS_DIR=$HOME/total_station_ros2
+TS_SURVEY=OFF; TS_ON=0; TS_PID=; TS_BAG=
+if [ "$MODE" != prepare ]; then
+  TS_SURVEY=$(python3 -c 'import json,os,sys; t=json.load(open(sys.argv[1])).get("ts"); print("OFF" if t is None else os.path.expanduser(t.get("survey") or ""))' "$EXP") || exit 1
+  if [ "$TS_SURVEY" != OFF ]; then
+    TS_ON=1
+    [ -z "$TS_SURVEY" ] || [ -f "$TS_SURVEY" ] || { echo "ts.survey のファイルが無い: $TS_SURVEY"; exit 1; }
+    [ -f "$TS_DIR/ts_record.py" ] || { echo "ts_record.py が無い: $TS_DIR"; exit 1; }
+  fi
+fi
+
 # ===== radio settings (edit for your setup) =====
 CH=157; BW=HT40+; PAYLOAD=100; DELAY=1000   # DEFAULT: ch157 HT40+ = 157+161, center 5795MHz 40MHz (UNII-3; needs 5.8GHz experimental license + anechoic chamber)
 # TX rate comes from the experiment config (tx.rate): 0x4901 = ant A only, HT40, MCS1 (1 stream);
@@ -117,6 +133,7 @@ mkdir -p "$OUTDIR"
 R=(); for i in $(seq 0 $((NRX-1))); do R+=("$OUTDIR/${STAMP}_${LABEL}_rx$i.bin"); done
 MG=$OUTDIR/${STAMP}_${LABEL}_merged.bin
 META=$OUTDIR/${STAMP}_${LABEL}_meta.json
+[ "$TS_ON" = 1 ] && TS_BAG=$OUTDIR/${STAMP}_${LABEL}_ts
 NPKTS=$(( (SECS + STARTUP_MARGIN) * 1000000 / DELAY ))
 echo "TX=$TX   RX=${RXS[*]}   ($NRX RX)   config=$EXP   rate=$RATE   out=$OUTDIR"
 CH=$CH BW=$BW RATE=$RATE TXPWR=$TXPWR PAYLOAD=$PAYLOAD DELAY=$DELAY NPKTS=$NPKTS IF=$IF TX=$TX \
@@ -142,6 +159,19 @@ stop_all() {
   # 2026-10-29: walk_sq1 sat in wait for 5 min). Kill our ssh children, hard if needed.
   pkill -P $$ -x ssh 2>/dev/null; sleep 1; pkill -9 -P $$ -x ssh 2>/dev/null
   wait "${P[@]}" $PT 2>/dev/null
+  [ "$TS_ON" = 1 ] && pkill -f "^python3 $TS_DIR/ts_record.py" 2>/dev/null
+}
+# Stop the TS recorder (SIGTERM -> it stops writing and closes the bag) and record the result.
+# ts_exit: 0 = bag written, 2 = error (TS not answering, ROS not found, ...), 3 = started but no
+# distance, 4 = never started (no start beep). For 2/3/4 there is no bag (ts_bag = none).
+stop_ts() {
+  [ -n "$TS_PID" ] || return 0
+  kill -TERM "$TS_PID" 2>/dev/null
+  for _ in $(seq 50); do kill -0 "$TS_PID" 2>/dev/null || break; sleep 0.1; done
+  kill -9 "$TS_PID" 2>/dev/null
+  wait "$TS_PID" 2>/dev/null; local rc=$?
+  TS_PID=
+  "$HERE/exp_meta.py" set "$META" ts_exit "$rc" ts_bag "$([ -d "$TS_BAG" ] && echo "$TS_BAG" || echo none)"
 }
 merge_all() {
   echo "=== [6/6] merge ==="
@@ -152,6 +182,7 @@ merge_all() {
   echo "  merged : $MG"
   echo "  per-RX : ${R[*]}"
   echo "  meta   : $META"
+  [ -n "$TS_BAG" ] && echo "  ts     : $([ -d "$TS_BAG" ] && echo "$TS_BAG" || echo "none (see ts_exit in the meta)")"
   echo "  check  : ./csi_check.py $MG"
 }
 # No note prompt at the end (removed 2026-11-07, user: it gets in the way; notes are written when
@@ -162,7 +193,7 @@ on_interrupt() {
   # Run the cleanup ONCE: further Ctrl-C presses are ignored until it is done (2026-11-07: without
   # this, each extra Ctrl-C restarted the handler).
   trap '' INT TERM
-  echo; echo "!!! interrupted: stopping injection + streams on every node"; ev interrupted; stop_all
+  echo; echo "!!! interrupted: stopping injection + streams on every node"; ev interrupted; stop_ts; stop_all
   ev streams_stopped
   "$HERE/exp_meta.py" set "$META" ended_by interrupted
   if [ -s "${R[0]}" ]; then merge_all; fi
@@ -172,6 +203,13 @@ trap on_interrupt INT TERM
 
 echo "=== [0/6] kill leftovers from a previous aborted run ==="
 stop_all
+
+if [ "$TS_ON" = 1 ]; then
+  # Started early so it is connected and tracking long before the beep. It writes nothing until SIGUSR1.
+  echo "=== [0b/6] total station: ts_record.py armed -> $TS_BAG (writes from the start beep to the record end) ==="
+  ( set +u; source /opt/ros/humble/setup.bash; exec python3 "$TS_DIR/ts_record.py" "$TS_BAG" ${TS_SURVEY:+--survey "$TS_SURVEY"} ) &
+  TS_PID=$!
+fi
 
 if [ "$RESETUP_RX" = 1 ]; then
   echo "=== [1/6] RX radio setup (ch$CH $BW): driver reload (--resetup), then check ==="
@@ -247,6 +285,10 @@ echo "#      >>>>>   START THE EXPERIMENT NOW   <<<<<                   #"
 printf  "#              recording for %-4s seconds                        #\n" "$SECS"
 echo "#                                                                #"
 echo "##################################################################"
+if [ -n "$TS_PID" ]; then
+  if kill -0 "$TS_PID" 2>/dev/null; then kill -USR1 "$TS_PID"    # TS starts writing at the beep
+  else echo "!!!!! WARNING: ts_record.py is not running -> no TS ground truth for this run"; fi
+fi
 ev start_beep
 printf '\a'; sleep 0.3; printf '\a'
 
@@ -260,9 +302,11 @@ for r in $(seq "$SECS" -1 1); do
   read -r -t 1 _ && { ENDED_BY=enter; break; }
   [ $? -gt 128 ] || sleep 1
 done
+[ -n "$TS_PID" ] && kill -TERM "$TS_PID" 2>/dev/null   # TS stops writing at the record end
 ev record_end
 REC_S=$(( $(date +%s) - T0 ))
 echo; echo "    recorded $REC_S s"
+stop_ts   # waits for the bag to close
 
 echo "=== [5/6] stop streams & injection ==="
 stop_all

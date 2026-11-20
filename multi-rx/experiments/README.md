@@ -30,6 +30,7 @@ cd ~/linux-80211n-csitool-supplementary/multi-rx
 | `purpose` / `purpose_note` | `exploration` / `confirmation` / `pilot` / `calibration` / `other` と、何のための収録か (csi-track のノートの節など)。`confirmation` は撮った後に csi-track の `docs/registry/confirmation_data.txt` へ封印登録する |
 | `people` | 部屋にいる人と、その位置・動き |
 | 任意 | `session_order`、`block`、`setup_change_before`、`notes` |
+| 任意 `ts` | トータルステーション (TS16) の真値 (2026-11-20)。`"ts": {"survey": "<~/total_station_ros2/ts_survey.py が出した json>"}` と書くと、開始ベルから記録終了までの区間だけ、プリズムの軌跡を `<stamp>_<label>_ts/` (rosbag2) に記録する。アンテナ位置と角度の survey も同じ bag に入る。結果は meta の `result.ts_exit` / `result.ts_bag` に残る。キーが無ければ TS を使わない。始める前に TS16 本体でプリズムに LOCK をかけること (GeoCOM Robotics のライセンスが無く、PC からは LOCK できない) |
 
 `run_experiment.sh` は環境変数 `RATE` が config の `tx.rate` と違うと止まる (rate は config で指定する)。`csi_check.py` は `_meta.json` を表示し、CSI の Ntx が `tx.streams` と違うと CHECK にする。
 
