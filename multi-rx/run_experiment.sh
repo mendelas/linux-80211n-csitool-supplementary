@@ -79,7 +79,11 @@ TXPWR=15   # dBm, i.e. the card's max (EEPROM ceiling is ~15-16 dBm).
 REMOTE=~/linux-80211n-csitool-supplementary
 DAYDIR=$HOME/csi_data/$(date +%Y%m%d)
 STARTUP_MARGIN=180        # extra injection seconds to cover 5GHz CSI startup
+LEAD_S=${LEAD_S:-30}      # s to get into position before the streams start (LEAD_S=0 skips).
+                          # User 2026-11-21: the start beep came too soon to walk to the start corner.
+                          # Waited before the streams, so the .bin files still start a few s before the beep.
 # ================================================
+[[ "$LEAD_S" =~ ^[0-9]+$ ]] || { echo "LEAD_S must be a whole number of seconds: $LEAD_S"; exit 1; }
 NRX=${#RXS[@]}
 [ "$NRX" -ge 1 ] || { echo "hosts.sh: RX_NODES is empty"; exit 1; }
 for r in "${RXS[@]}"; do [ "$r" = "$TX" ] && { echo "hosts.sh: $r is both TX and RX"; exit 1; }; done
@@ -164,6 +168,8 @@ stop_all() {
 # Stop the TS recorder (SIGTERM -> it stops writing and closes the bag) and record the result.
 # ts_exit: 0 = bag written, 2 = error (TS not answering, ROS not found, ...), 3 = started but no
 # distance, 4 = never started (no start beep). For 2/3/4 there is no bag (ts_bag = none).
+# 137 = killed after 5 s. 143 (recordings up to 2026-11-21) = a second SIGTERM killed it during its
+# shutdown, usually after the bag was closed: check the bag itself (ts_record.py now ignores it).
 stop_ts() {
   [ -n "$TS_PID" ] || return 0
   kill -TERM "$TS_PID" 2>/dev/null
@@ -195,7 +201,7 @@ on_interrupt() {
   trap '' INT TERM
   echo; echo "!!! interrupted: stopping injection + streams on every node"; ev interrupted; stop_ts; stop_all
   ev streams_stopped
-  "$HERE/exp_meta.py" set "$META" ended_by interrupted
+  "$HERE/exp_meta.py" set "$META" ended_by interrupted ${T0:+recorded_s ${REC_S:-$(( $(date +%s) - T0 ))}}
   if [ -s "${R[0]}" ]; then merge_all; fi
   exit 130
 }
@@ -222,12 +228,21 @@ if ! check_radios $SCOPE; then
   echo "!!!!! radios not prepared (see above). Recordings no longer reload the driver."
   echo "!!!!! prepare once for this installation:  ./run_experiment.sh --prepare"
   echo "!!!!! or prepare + record in one go:       ./run_experiment.sh --resetup $EXP"
-  # Nothing was recorded: drop this run's directory, which holds only the meta written above.
+  # Nothing was recorded: stop the armed ts_record.py (otherwise it keeps the TS16 serial port and
+  # tracks on after this exit) and drop this run's directory: the meta written above + the TS bag.
+  stop_ts; [ -n "$TS_BAG" ] && rm -rf "$TS_BAG"
   rm -f "$META"; rmdir "$OUTDIR" 2>/dev/null
   exit 1
 fi
 if [ "$RESETUP_RX" = 1 ]; then PREP=resetup; elif [ "$RESETUP_TX" = 1 ]; then PREP=resetup_tx; else PREP=check; fi
 "$HERE/exp_meta.py" set "$META" radio_prep "$PREP" "${RC_LINES[@]}"
+
+"$HERE/exp_meta.py" set "$META" lead_s "$LEAD_S"
+if [ "$LEAD_S" -gt 0 ]; then
+  echo "=== [1b/6] ${LEAD_S} s to get into position (nothing recorded yet; LEAD_S=0 skips) ==="
+  for r in $(seq "$LEAD_S" -1 1); do printf "\r    streams start in %3ss   " "$r"; sleep 1; done
+  echo
+fi
 
 echo "=== [2/6] start RX streams -> control PC ==="
 P=()
@@ -295,13 +310,21 @@ printf '\a'; sleep 0.3; printf '\a'
 # Enter stops early: walking captures must stop the moment the walk ends (a static tail
 # skews the evaluation, 08-05 note). read returns 0 on Enter, >128 after its 1 s timeout
 # (already waited), 1 on EOF when there is no tty -> sleep instead.
+# Ctrl-C in this loop only sets a flag; the loop then ends like Enter and the normal end path below
+# stops everything and merges (ended_by = interrupted). 2026-11-21: on_interrupt run from inside
+# `read -t` was cut off part-way (after stop_ts or in stop_all), and the countdown went on to the
+# timer with the streams already stopped; Ctrl-C no longer worked (reproduced with a mock ssh).
 T0=$(date +%s)
 ENDED_BY=timer
+STOP_REQ=0
+trap 'STOP_REQ=1' INT TERM
 for r in $(seq "$SECS" -1 1); do
   printf "\r    recording... %4ss left   (Enter = stop now)   " "$r"
   read -r -t 1 _ && { ENDED_BY=enter; break; }
-  [ $? -gt 128 ] || sleep 1
+  [ $? -gt 128 ] || [ "$STOP_REQ" = 1 ] || sleep 1
+  [ "$STOP_REQ" = 1 ] && { ENDED_BY=interrupted; echo; echo "!!! interrupted: stopping injection + streams on every node"; ev interrupted; break; }
 done
+trap on_interrupt INT TERM
 [ -n "$TS_PID" ] && kill -TERM "$TS_PID" 2>/dev/null   # TS stops writing at the record end
 ev record_end
 REC_S=$(( $(date +%s) - T0 ))
