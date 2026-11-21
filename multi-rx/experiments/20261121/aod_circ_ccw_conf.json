@@ -1,0 +1,30 @@
+{
+  "label": "aod_circ_ccw_conf",
+  "date": "2026-11-21",
+  "seconds": 90,
+  "setup": "20261121_std",
+  "session_order": 58,
+  "block": "block2_3stream",
+  "tx": {
+    "rate": "0x1c911",
+    "streams": 3,
+    "antennas": "A・B・C とも立てて給電 (3 ストリーム、MCS 17)。3 本給電は免許の範囲内と確認済み (2026-11-05)"
+  },
+  "trajectory": {
+    "type": "other",
+    "shape": "circle",
+    "direction": "ccw",
+    "path": "四角の中央 (1.808, 1.554) を中心にした半径約 0.9 m の円 (四角より一回り大きく、四角の上下の辺の 0.3 m 外を通る)。1 本目の aod_circ_ccw_exp (16:52) が自然に半径 0.93 m だったので、それに合わせた (当初の計画は 0.6 m)",
+    "start_corner": "円の一番下 (1.808, 0.65)、c1 と c2 の中点から TX 側へ 0.3 m",
+    "description": "開始ベル (2 回) で円の一番下 (c1 と c2 の中点から TX 側へ 0.3 m) から右 (c2・RX1 の側) へ歩き出し、中央を中心に半径約 0.9 m の円を反時計回り (左回り)に止まらず何周もする。中央の床の印を見ながら同じ半径を保つ。自然な速さ。終了ベル (3 回) で止まる"
+  },
+  "purpose": "confirmation",
+  "purpose_note": "確認用 (TS16 の真値つき)。aod_circ_ccw_exp と対。収録後、csi-track の docs/registry/confirmation_data.txt に封印登録する (ユーザー)。健全性検査 (csi_check と TS の件数・途切れ) 以外で読まない。TX 3 ストリーム (TX 側の AoD も使える)。同じ軌跡の 1 ストリーム版は circ_ccw_conf",
+  "people": "歩行者 1 名 (操作者が兼ね、頭にプリズム)。歩行域にほかの人はいない",
+  "ts": {
+    "survey": "/home/kota/csi_data/20261121/20261121_144103_survey/20261121_144103_survey_ts.json",
+    "prism": "歩行者の頭に付ける。プリズムの点 = 頭の位置で、体の中心から数 cm〜十数 cm ずれ得る。頭の高さはアンテナより約 0.8 m 上 (11/21 の 1 本目のブロックの TS)。始める前に TS16 本体で LOCK をかける"
+  },
+  "setup_change_before": "なし",
+  "notes": ""
+}

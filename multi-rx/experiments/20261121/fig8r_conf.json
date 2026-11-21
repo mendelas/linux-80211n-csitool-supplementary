@@ -1,0 +1,29 @@
+{
+  "label": "fig8r_conf",
+  "date": "2026-11-21",
+  "seconds": 90,
+  "setup": "20261121_std",
+  "session_order": 25,
+  "block": "block1_1stream_redo",
+  "tx": {
+    "rate": "0x4901",
+    "streams": 1,
+    "antennas": "A のみ給電。B・C は寝かせる (1 ストリームの標準、11/07 と同じ)。port 1 = A を立て、port 2・3 = B・C にもアンテナを付けて寝かせる"
+  },
+  "trajectory": {
+    "type": "other",
+    "shape": "figure8_reversed",
+    "path": "四角の中の 8 の字。左の輪は c1・c4 の側 (x 1.0〜1.8 m)、右の輪は c2・c3 の側 (x 1.8〜2.6 m)、四角の中央で斜めに交わる。fig8 と同じ形で逆回り",
+    "start_corner": "四角の中央 (1.808, 1.554)",
+    "description": "開始ベル (2 回) で四角の中央から左下 (c1 の方) へ歩き出し、左の輪を時計回りに回って中央を右下へ抜け、右の輪を反時計回りに回って中央に戻る。これを止まらずに繰り返して 8 の字を描き続ける (fig8 の逆回り)。角は作らず、なめらかな曲線で。自然な速さ。終了ベル (3 回) で止まる"
+  },
+  "purpose": "confirmation",
+  "purpose_note": "確認用 (TS16 の真値つき)。fig8r_exp と対。収録後、csi-track の docs/registry/confirmation_data.txt に封印登録する (ユーザー)。健全性検査 (csi_check と TS の件数・途切れ) 以外で読まない",
+  "people": "歩行者 1 名 (操作者が兼ね、頭にプリズム)。歩行域にほかの人はいない",
+  "ts": {
+    "survey": "/home/kota/csi_data/20261121/20261121_144103_survey/20261121_144103_survey_ts.json",
+    "prism": "歩行者の頭に付ける。プリズムの点 = 頭の位置で、体の中心から数 cm〜十数 cm ずれ得る。頭の高さはアンテナより約 0.8 m 上 (11/21 の 1 本目のブロックの TS)。始める前に TS16 本体で LOCK をかける"
+  },
+  "setup_change_before": "なし",
+  "notes": "撮り直し。2026-11-21 の 1 本目のブロック (14:52〜15:49 の 9 本) は TX のアンテナが port 2 に 1 本だけで、rate 0x4901 が送る port 1 (A) にアンテナが無かった (ユーザー 15:5x。受信電力が 11/07 より約 20 dB 低い)。その 9 本は残して meta に注記し、同じラベルでこの条件で撮り直す"
+}

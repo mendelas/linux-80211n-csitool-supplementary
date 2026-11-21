@@ -1,0 +1,26 @@
+{
+  "label": "aod_st_pre",
+  "date": "2026-11-21",
+  "seconds": 60,
+  "setup": "20261121_std",
+  "session_order": 33,
+  "block": "block2_3stream",
+  "tx": {
+    "rate": "0x1c911",
+    "streams": 3,
+    "antennas": "A・B・C とも立てて給電 (3 ストリーム、MCS 17)。3 本給電は免許の範囲内と確認済み (2026-11-05)"
+  },
+  "trajectory": {
+    "type": "static",
+    "description": "静止。3 ストリームの歩行の前。開始ベルから終了ベルまで誰も動かない"
+  },
+  "purpose": "calibration",
+  "purpose_note": "TX 3 本給電の静止。TX 側の B_t と混合 (csi-track aod-pilot-health §7.4) の基準。ドライバを再読込しないので、TX の状態 (素子ごとの 0/π) はこのブロックの間は変わらないはず (2026-11-09 からの手順)。1 ストリームの st_post との比較にも使う",
+  "people": "部屋の中は操作者 1 名だけで、歩行域の外で動かない。歩行域に人はいない",
+  "ts": {
+    "survey": "/home/kota/csi_data/20261121/20261121_144103_survey/20261121_144103_survey_ts.json",
+    "prism": "歩行域の外に置き、誰も持たない (置いた位置は bag の /ts16/prism_setup)。始める前に TS16 本体で LOCK をかける"
+  },
+  "setup_change_before": "TX の B・C を寝かせた状態から立てた (port 1・2・3 = A・B・C、TX の本体とアレイは動かしていない)。プリズムは歩行域の外の置き場所のまま",
+  "notes": ""
+}

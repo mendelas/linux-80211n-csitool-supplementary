@@ -1,0 +1,29 @@
+{
+  "label": "aod_sq_ccw_conf",
+  "date": "2026-11-21",
+  "seconds": 90,
+  "setup": "20261121_std",
+  "session_order": 54,
+  "block": "block2_3stream",
+  "tx": {
+    "rate": "0x1c911",
+    "streams": 3,
+    "antennas": "A・B・C とも立てて給電 (3 ストリーム、MCS 17)。3 本給電は免許の範囲内と確認済み (2026-11-05)"
+  },
+  "trajectory": {
+    "type": "square",
+    "direction": "ccw",
+    "path": "setup の walking_square (1.6 x 1.2 m)",
+    "start_corner": "c1 (1.008, 0.954)、TX に最も近い角",
+    "description": "開始ベル (2 回) で c1 から歩き始め、四角を反時計回り (左回り、c1 → c2 → c3 → c4)に止まらず何周もする。角でも止まらない。自然な速さ。終了ベル (3 回) で止まる"
+  },
+  "purpose": "confirmation",
+  "purpose_note": "確認用 (TS16 の真値つき)。同じ型の _exp と対。収録後、csi-track の docs/registry/confirmation_data.txt に封印登録する (ユーザー)。健全性検査 (csi_check と TS の件数・途切れ) 以外で読まない。TX 3 ストリーム (TX 側の AoD も使える)。同じ軌跡の 1 ストリーム版は sq_ccw_conf",
+  "people": "歩行者 1 名 (操作者が兼ね、頭にプリズム)。歩行域にほかの人はいない",
+  "ts": {
+    "survey": "/home/kota/csi_data/20261121/20261121_144103_survey/20261121_144103_survey_ts.json",
+    "prism": "歩行者の頭に付ける。プリズムの点 = 頭の位置で、体の中心から数 cm〜十数 cm ずれ得る。頭の高さはアンテナより約 0.8 m 上 (11/21 の 1 本目のブロックの TS)。始める前に TS16 本体で LOCK をかける"
+  },
+  "setup_change_before": "なし",
+  "notes": ""
+}

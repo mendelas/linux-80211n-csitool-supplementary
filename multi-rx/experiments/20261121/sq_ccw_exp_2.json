@@ -1,0 +1,29 @@
+{
+  "label": "sq_ccw_exp_2",
+  "date": "2026-11-21",
+  "seconds": 90,
+  "setup": "20261121_std",
+  "session_order": 3,
+  "block": "block1_1stream_redo",
+  "tx": {
+    "rate": "0x4901",
+    "streams": 1,
+    "antennas": "A のみ給電。B・C は寝かせる (1 ストリームの標準、11/07 と同じ)。port 1 = A を立て、port 2・3 = B・C にもアンテナを付けて寝かせる"
+  },
+  "trajectory": {
+    "type": "square",
+    "direction": "ccw",
+    "path": "setup の walking_square (1.6 x 1.2 m)",
+    "start_corner": "c1 (1.008, 0.954)、TX に最も近い角",
+    "description": "開始ベル (2 回) で c1 から歩き始め、四角を反時計回り (左回り、c1 → c2 → c3 → c4)に止まらず何周もする。角でも止まらない。自然な速さ。終了ベル (3 回) で止まる"
+  },
+  "purpose": "exploration",
+  "purpose_note": "探索用の 2 本目 (TS16 の真値つき、ユーザー 2026-11-21「各実験あたり2本は同じものをとっても良い」「封印用じゃなくて普通に使う用、封印はその後」)。歩き方は sq_ccw_exp と同じ。封印用の sq_ccw_conf は探索用を撮り終えた後にまとめて撮る",
+  "people": "歩行者 1 名 (操作者が兼ね、頭にプリズム)。歩行域にほかの人はいない",
+  "ts": {
+    "survey": "/home/kota/csi_data/20261121/20261121_144103_survey/20261121_144103_survey_ts.json",
+    "prism": "歩行者の頭に付ける。プリズムの点 = 頭の位置で、体の中心から数 cm〜十数 cm ずれ得る。頭の高さはアンテナより約 0.8 m 上 (11/21 の 1 本目のブロックの TS)。始める前に TS16 本体で LOCK をかける"
+  },
+  "setup_change_before": "なし",
+  "notes": "撮り直し。2026-11-21 の 1 本目のブロック (14:52〜15:49 の 9 本) は TX のアンテナが port 2 に 1 本だけで、rate 0x4901 が送る port 1 (A) にアンテナが無かった (ユーザー 15:5x。受信電力が 11/07 より約 20 dB 低い)。その 9 本は残して meta に注記し、同じラベルでこの条件で撮り直す"
+}

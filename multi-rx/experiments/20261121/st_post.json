@@ -1,0 +1,26 @@
+{
+  "label": "st_post",
+  "date": "2026-11-21",
+  "seconds": 60,
+  "setup": "20261121_std",
+  "session_order": 32,
+  "block": "block1_1stream_redo",
+  "tx": {
+    "rate": "0x4901",
+    "streams": 1,
+    "antennas": "A のみ給電。B・C は寝かせる (1 ストリームの標準、11/07 と同じ)。port 1 = A を立て、port 2・3 = B・C にもアンテナを付けて寝かせる"
+  },
+  "trajectory": {
+    "type": "static",
+    "description": "静止。1 ストリームの歩行の後。開始ベルから終了ベルまで誰も動かない"
+  },
+  "purpose": "calibration",
+  "purpose_note": "歩行の後の静止。st_pre と比べて設置が動いていないことを確かめる",
+  "people": "部屋の中は操作者 1 名だけで、歩行域の外で動かない。歩行域に人はいない",
+  "ts": {
+    "survey": "/home/kota/csi_data/20261121/20261121_144103_survey/20261121_144103_survey_ts.json",
+    "prism": "歩行域の外に置き、誰も持たない (置いた位置は bag の /ts16/prism_setup)。始める前に TS16 本体で LOCK をかける"
+  },
+  "setup_change_before": "プリズムを歩行者の頭から歩行域の外の置き場所に戻した (TS16 で LOCK をかけ直す)",
+  "notes": "撮り直し。2026-11-21 の 1 本目のブロック (14:52〜15:49 の 9 本) は TX のアンテナが port 2 に 1 本だけで、rate 0x4901 が送る port 1 (A) にアンテナが無かった (ユーザー 15:5x。受信電力が 11/07 より約 20 dB 低い)。その 9 本は残して meta に注記し、同じラベルでこの条件で撮り直す"
+}

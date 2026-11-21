@@ -1,0 +1,73 @@
+{
+  "setup_id": "20261121_std",
+  "valid_from": "2026-11-21",
+  "used_on": ["2026-11-21"],
+  "description": "20261105_std と同じ形の標準の設置 (TX が原点、RX0 が +y 側、RX1 が +x 側)。位置とブロードサイドを TS16 で初めて実測した (2026-11-21 14:41 のサーベイ)。目視だった 20261105_std の値との差は compare_20261105_std。",
+  "coordinate_frame": {
+    "origin": "TX のアレイの中心 (TS16 で測ったプリズムの 2 点の中点)",
+    "x_axis": "TX の中心 → RX1 の中心 (水平)",
+    "y_axis": "+x から反時計回りに 90° (RX0 の側)",
+    "z": "TX の中心からの高さ [m]",
+    "angle_convention": "角度はすべて +x 軸から反時計回り [deg]。アレイの角度はブロードサイド (素子の並びに直角で、歩行域を向く側) の向き",
+    "csi_track_orient": "csi-track の config の orient [rad] はアレイの軸の向きで、ブロードサイド − 90° に当たる (axis_deg)"
+  },
+  "survey": {
+    "file": "/home/kota/csi_data/20261121/20261121_144103_survey/20261121_144103_survey_ts.json",
+    "instrument": "Leica TS16 (serial 3200316)、プリズム定数 0.03 m",
+    "method": "~/total_station_ros2/ts_survey.py --setup-id 20261121_std --toward 1.808 1.554。1 台につきプリズムをアレイの両横の 2 点に置き、各点 3 回の測距の平均。ばらつきは 0.0〜0.2 mm",
+    "broadside_rule": "2 点を結ぶ軸の法線のうち、歩行の四角の重心 (1.808, 1.554) を向く側",
+    "tilt_arcsec": {"cross": -3.5, "length": 0.8},
+    "ts_frame_note": "TS16 は器械点 E0 = 4.7575、N0 = 4.2393、H0 = 0、器械高 hi = 0 (未設定)。サーベイから最後の収録まで TS16 を動かさない",
+    "ts16_pos_m": [-1.766, 0.421],
+    "ts16_z_m": 0.595,
+    "ts16_pos_note": "TS16 の器械の中心の位置 (サーベイから計算)。TX の後ろ (-x 側) にあり、アンテナの高さより 0.60 m 高い。TS16 の本体と三脚は部屋の中の静止した物として CSI に入る"
+  },
+  "carrier": {"channel": 157, "bandwidth": "HT40+", "center_mhz": 5795},
+  "machines": "hosts.sh: TX_NODE=13、RX_NODES=(11 12)",
+  "tx": {
+    "machine": 13,
+    "pos_m": [0.0, 0.0],
+    "z_m": 0.0,
+    "broadside_deg": 48.07,
+    "axis_deg": 318.07,
+    "broadside_source": "TS16 実測 (プリズム 2 点の軸の法線)",
+    "survey_baseline_m": 0.0521,
+    "array": "3 素子の直線配列。素子間隔は約 2.5 cm (目視。λ/2 = 2.59 cm)。TX の後ろから歩行域を見て左から A・B・C (A → C は軸の 318° 方向)",
+    "antenna_state_per_recording": "実験 config の tx.antennas に書く (1 ストリームは A のみ給電で B・C を寝かせる。3 ストリームは A・B・C とも立てる)"
+  },
+  "rx": [
+    {
+      "rx_id": 0,
+      "machine": 11,
+      "pos_m": [-0.0357, 2.7502],
+      "z_m": 0.0022,
+      "broadside_deg": 323.11,
+      "axis_deg": 233.11,
+      "broadside_source": "TS16 実測 (プリズム 2 点の軸の法線)",
+      "survey_baseline_m": 0.0508,
+      "ant1": "2026-11-21 は未確認 (2026-10-31 のユーザー確認では TX から見て奥)"
+    },
+    {
+      "rx_id": 1,
+      "machine": 12,
+      "pos_m": [3.7602, 0.0],
+      "z_m": -0.0032,
+      "broadside_deg": 134.45,
+      "axis_deg": 44.45,
+      "broadside_source": "TS16 実測 (プリズム 2 点の軸の法線)",
+      "survey_baseline_m": 0.0496,
+      "ant1": "2026-11-21 は未確認 (2026-10-31 のユーザー確認では TX から見て手前)"
+    }
+  ],
+  "heights": "3 台のアレイ (プリズムの点) は TX の中心から ±3 mm の同じ高さ。床からの高さは未測定",
+  "compare_20261105_std": "目視・巻尺の値からの差: TX 45° → 48.07°。RX0 (0, 2.8)・315° → (-0.036, 2.750)・323.11°。RX1 (3.75, 0)・120° → (3.760, 0)・134.45°",
+  "walking_square": {
+    "size_m": [1.6, 1.2],
+    "corners_m": {"c1": [1.008, 0.954], "c2": [2.608, 0.954], "c3": [2.608, 2.154], "c4": [1.008, 2.154]},
+    "order_ccw": ["c1", "c2", "c3", "c4"],
+    "centroid_m": [1.808, 1.554],
+    "source": "20261105_std と同じ (大まかな形で真値ではない)。2026-11-21 の真の軌跡は各収録の TS16 の bag (/ts16/prism_setup)"
+  },
+  "unmeasured": ["床からの高さ", "TX の素子間隔は目視", "各 RX の ant1 の向き (2026-11-21 は未確認)", "プリズムの 2 点と素子の位置の関係 (2 点はアレイの両横で、素子そのものではない)"],
+  "photos": "未記録 (撮ったらファイル名をここに書く)"
+}
