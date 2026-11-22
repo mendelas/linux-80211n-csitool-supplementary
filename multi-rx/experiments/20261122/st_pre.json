@@ -1,0 +1,28 @@
+{
+  "label": "st_pre",
+  "date": "2026-11-22",
+  "seconds": 60,
+  "setup": "20261122_std",
+  "session_order": 1,
+  "block": "visit1_square_1stream",
+  "tx": {
+    "rate": "0x4901",
+    "streams": 1,
+    "antennas": "A のみ給電。B・C は寝かせる (1 ストリームの標準、11/07・11/21 と同じ)。port 1 = A を立て、port 2・3 = B・C にもアンテナを付けて寝かせる"
+  },
+  "trajectory": {
+    "type": "static",
+    "plan": "csi-track docs/reports/plan/2026-11-13-recording-plan-after-tof-diagnosis.md",
+    "description": "無人の静止 60 秒。歩く範囲に人も物の動きも無い"
+  },
+  "purpose": "exploration",
+  "purpose_note": "無人の静止。人がいないときに推定が何を出すかの対照と、機器の状態の記録 (計画 §2 の 4)。収録の最初。受信電力を 11/21 の st_pre (AGC rx0 40.0・rx1 43.3) と比べ、A が port 1 に付いていることを確かめる",
+  "people": "歩行域に人はいない。部屋の中は操作者 1 名だけで、歩行域の外 (操作の場所) で動かない (11/21 の静止と同じ)",
+  "setup_change_before": "なし",
+  "truth": "TS16 (rosbag2、制御 PC の時計)。run_experiment.sh が開始ベルから記録終了まで <stamp>_<label>_ts/ に記録する。TS16 は (−1.802, 0.383)、TX の後ろ。プリズムの付け方は ts.prism",
+  "notes": "csi-track docs/reports/plan/2026-11-13-recording-plan-after-tof-diagnosis.md (第 5 版、2026-11-13 承認) の訪問 1。計画との違い: (1) 床の印 s1・s3・m0 は貼らず TS でも測らない (ユーザー 2026-11-22「床の印は不要でしょう。ts あるし」)。足踏みは目分量の位置で、立った位置は TS の bag で決める。c1〜c4 は 20261105_std の床の印。(2) 設置は 11/07 の 20261105_std ではなく、当日の TS16 サーベイの 20261122_std (機器が少しずれただけ、ユーザー)。(3) 開始ベルは鳴る (計画を書いた時点では鳴らなかった)。(4) TS の bag は収録のフォルダの中 (計画 §7 の truth/ ではない)。封印の登録はファイル単位 (計画 §8 の 1) なので bag は読める。(5) pilot_long は前の日ではなく当日の最初。(6) 動画の控え、送受信の線を横切る事象 (計画 §4 の c) は無し",
+  "ts": {
+    "survey": "/home/kota/csi_data/20261122/20261122_140006_survey/20261122_140006_survey_ts.json",
+    "prism": "歩行域の外に置き、誰も持たない (置いた位置は bag の /ts16/prism_setup)。始める前に TS16 本体で LOCK をかける"
+  }
+}
